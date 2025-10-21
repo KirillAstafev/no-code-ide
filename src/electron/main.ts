@@ -1,9 +1,12 @@
 import { app, BrowserWindow } from "electron";
+import { isDev } from "./utils.js";
 
 app.on("ready", () => {
     const mainWindow = new BrowserWindow({
-       fullscreen: true
+        fullscreen: true
     });
 
-    mainWindow.loadURL("http://localhost:5123");
+    if (isDev()) {
+        mainWindow.loadURL("http://localhost:5123");
+    }
 });
