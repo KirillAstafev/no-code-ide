@@ -5,10 +5,10 @@ import './styles.css'
 
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from "@gravity-ui/uikit";
-import App from './App.tsx'
+import MainPage from './pages/main/MainPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
-  <ThemeProvider theme="system">
-    <App />
+  <ThemeProvider theme="dark">
+    <MainPage />
   </ThemeProvider>,
 )

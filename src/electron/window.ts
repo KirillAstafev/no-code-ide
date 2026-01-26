@@ -1,7 +1,7 @@
 import { BrowserWindow } from "electron";
 import { isDev } from "./utils.js";
 
-const createWindow = (path: string, options: Electron.BrowserWindowConstructorOptions | undefined) => {
+const createWindow = (path: string, options: Electron.BrowserWindowConstructorOptions | undefined): BrowserWindow => {
     const window = new BrowserWindow(options);
     window.once("ready-to-show", () => {
         window.show();
@@ -11,6 +11,8 @@ const createWindow = (path: string, options: Electron.BrowserWindowConstructorOp
         window.loadURL(path);
         window.webContents.openDevTools();
     }
+
+    return window;
 };
 
 export { createWindow };
