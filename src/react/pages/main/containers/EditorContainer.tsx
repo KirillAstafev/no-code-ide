@@ -1,4 +1,5 @@
-import { Tab, TabList, TabProvider, Text } from '@gravity-ui/uikit';
+import { Tab, TabList, TabProvider } from '@gravity-ui/uikit';
+import Editor from '../components/Editor';
 
 function EditorContainer() {
     // Пример данных для вкладок
@@ -19,11 +20,7 @@ function EditorContainer() {
                     ))}
                 </TabList>
             </TabProvider>
-            <div style={{ flex: 1, padding: '16px', overflow: 'auto' }}>
-                <Text variant="body-1">Редактор кода</Text>
-                <div style={{ marginTop: '16px', height: '100%', border: '1px solid #ccc', borderRadius: '4px', padding: '8px' }}>
-                </div>
-            </div>
+            <Editor />
         </div>
     );
 }
