@@ -1,6 +1,6 @@
-import MenuContainer from './components/MenuContainer';
-import WindowButtonContainer from './components/WindowButtonContainer';
-import MainContentContainer from "./components/MainContentContainer.tsx";
+import MenuContainer from './containers/MenuContainer';
+import WindowButtonContainer from './containers/WindowButtonContainer';
+import MainContentContainer from "./containers/MainContentContainer.tsx";
 
 function MainPage() {
     return (
