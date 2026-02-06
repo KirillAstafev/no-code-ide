@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { createWindow } from "./window.js";
-import { getPreloadPath } from "./PathResolver.js";
+import { getPreloadPath, ipcMainOn } from "./utils.js";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -13,15 +13,15 @@ app.on("ready", () => {
         }
     }) as BrowserWindow;
 
-    ipcMain.on("closeWindow", () => {
+    ipcMainOn("closeWindow", () => {
         mainWindow?.close();
     });
 
-    ipcMain.on("minimizeWindow", () => {
-        mainWindow?.minimize();
+    ipcMainOn("minimizeWindow", () => {
+       mainWindow?.minimize();
     });
 
-    ipcMain.on("maximizeWindow", () => {
+    ipcMainOn("maximizeWindow", () => {
         mainWindow?.maximize();
     });
 });

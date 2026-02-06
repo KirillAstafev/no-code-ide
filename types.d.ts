@@ -5,3 +5,5 @@ interface Window {
         maximizeWindow: () => void;
     }
 }
+
+type WindowAction = "closeWindow" | "minimizeWindow" | "maximizeWindow";

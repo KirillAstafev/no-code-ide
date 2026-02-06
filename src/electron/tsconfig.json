@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "types": ["../../types"],
     "target": "ESNext",
     "module": "NodeNext",
     "esModuleInterop": true,
