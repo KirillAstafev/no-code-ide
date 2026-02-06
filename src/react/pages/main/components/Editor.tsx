@@ -1,4 +1,4 @@
-import { EAnchorType, GraphState } from '@gravity-ui/graph';
+import { EAnchorType, Graph, GraphState, type TBlock } from '@gravity-ui/graph';
 import { GraphCanvas, useGraph, GraphBlock } from '@gravity-ui/graph/react';
 import { useEffect } from 'react';
 
@@ -57,7 +57,7 @@ function Editor() {
     });
   }, [setEntities]);
 
-  const renderBlockFn = (graph, block) => {
+  const renderBlockFn = (graph: Graph, block: TBlock) => {
     return <GraphBlock graph={graph} block={block}>{block.id}</GraphBlock>;
   };
 
