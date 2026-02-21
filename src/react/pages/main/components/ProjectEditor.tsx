@@ -1,104 +1,36 @@
 import { useState } from 'react';
-import { ChevronRight } from '@gravity-ui/icons';
-import { Icon, Text } from '@gravity-ui/uikit';
+import { Toc, type TocItem } from '@gravity-ui/uikit';
 
-interface TreeItem {
-    id: string;
-    title: string;
-    children?: TreeItem[];
-}
-
-const projectStructure: TreeItem[] = [
+const tocItems: TocItem[] = [
     {
-        id: 'schema',
-        title: 'Схема проекта',
-        children: [
-            { id: 'schema-main', title: 'main.graph' },
-            { id: 'schema-modules', title: 'modules.graph' },
+        value: 'schema',
+        content: 'Схема проекта',
+    },
+    {
+        value: 'modules',
+        content: 'Модули проекта',
+        items: [
+            { value: 'module-kafka', content: 'Модуль обработки в Kafka' },
+            { value: 'module-postgresql', content: 'Модуль обработки НЕВА 03-Ф (Postgresql)' },
+            { value: 'module-prometheus', content: 'Модуль обработки в Prometheus' },
         ],
     },
     {
-        id: 'modules',
-        title: 'Модули проекта',
-        children: [
-            { id: 'module-kafka', title: 'Модуль обработки в Kafka' },
-            { id: 'module-postgresql', title: 'Модуль обработки НЕВА 03-Ф (Postgresql)' },
-            { id: 'module-prometheus', title: 'Модуль обработки в Prometheus' },
-        ],
-    },
-    {
-        id: 'config',
-        title: 'Конфигурация проекта',
-        children: [
-            { id: 'config-general', title: 'general.json' },
-            { id: 'config-database', title: 'database.json' },
-            { id: 'config-monitoring', title: 'monitoring.json' },
-        ],
+        value: 'config',
+        content: 'Конфигурация проекта',
     },
 ];
 
-interface TreeNodeProps {
-    item: TreeItem;
-    level: number;
-}
-
-function TreeNode({ item, level }: TreeNodeProps) {
-    const [isExpanded, setIsExpanded] = useState(true);
-    const hasChildren = item.children && item.children.length > 0;
-
-    const handleClick = () => {
-        if (hasChildren) {
-            setIsExpanded(!isExpanded);
-        }
-    };
-
-    return (
-        <div>
-            <div
-                onClick={handleClick}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '4px 8px',
-                    cursor: hasChildren ? 'pointer' : 'default',
-                    backgroundColor: 'transparent',
-                    borderRadius: '4px',
-                }}
-            >
-                {hasChildren ? (
-                    <Icon
-                        data={ChevronRight}
-                        size={16}
-                        style={{
-                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s'
-                        }}
-                    />
-                ) : (
-                    <span style={{ width: '16px' }} />
-                )}
-
-                <Text variant="body-2">{item.title}</Text>
-            </div>
-
-            {hasChildren && isExpanded && (
-                <div>
-                    {item.children!.map(child => (
-                        <TreeNode key={child.id} item={child} level={level + 1} />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
 function ProjectEditor() {
+    const [activeValue, setActiveValue] = useState<string>('schema');
+
     return (
-        <div style={{ flex: 1, overflow: 'auto' }}>
-            {projectStructure.map(item => (
-                <TreeNode key={item.id} item={item} level={0} />
-            ))}
+        <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
+            <Toc
+                items={tocItems}
+                value={activeValue}
+                onUpdate={setActiveValue}
+            />
         </div>
     );
 }
