@@ -17,9 +17,15 @@ function MenuContainer() {
                         }
                     },
                     {
-                        text: 'Открыть',
+                        text: 'Открыть проект',
                         action: () => {
                             console.log('Открыть проект');
+                        }
+                    },
+                    {
+                        text: 'Закрыть',
+                        action: () => {
+                            window.electron.closeWindow();
                         }
                     }
                 ]}
