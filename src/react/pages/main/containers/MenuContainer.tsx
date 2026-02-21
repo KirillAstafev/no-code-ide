@@ -2,7 +2,7 @@ import { Button, DropdownMenu } from '@gravity-ui/uikit';
 
 function MenuContainer() {
     return (
-        <div style={{ padding: '4px 8px' }} id="menu-container">
+        <div style={{ padding: '4px 8px', display: 'flex', gap: '4px' }} id="menu-container">
             <DropdownMenu
                 switcher={
                     <Button view="flat" size="l">
@@ -26,6 +26,28 @@ function MenuContainer() {
                         text: 'Закрыть',
                         action: () => {
                             window.electron.closeWindow();
+                        }
+                    }
+                ]}
+            />
+
+            <DropdownMenu
+                switcher={
+                    <Button view="flat" size="l">
+                        Сборка
+                    </Button>
+                }
+                items={[
+                    {
+                        text: 'Собрать проект',
+                        action: () => {
+                            console.log('Собрать проект');
+                        }
+                    },
+                    {
+                        text: 'Пересобрать проект',
+                        action: () => {
+                            console.log('Пересобрать проект');
                         }
                     }
                 ]}

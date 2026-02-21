@@ -2,11 +2,10 @@ import { Tab, TabList, TabProvider } from '@gravity-ui/uikit';
 import Editor from '../components/Editor';
 
 function EditorContainer() {
-    // Пример данных для вкладок
     const tabs = [
-        { id: 'tab1', title: 'Новый файл 1' },
-        { id: 'tab2', title: 'Новый файл 2' },
-        { id: 'tab3', title: 'Новый файл 3' },
+        { id: 'tab1', title: 'Модуль обработки НЕВА 03-Ф (Postgresql)' },
+        { id: 'tab2', title: 'Модуль обработки в Kafka' },
+        { id: 'tab3', title: 'Модуль обработки в Prometheus' },
     ];
 
     return (

@@ -1,4 +1,5 @@
-import { Text } from '@gravity-ui/uikit';
+import ProjectEditor from '../components/ProjectEditor';
+import ElementPanel from '../components/ElementPanel';
 
 function SidebarContainer() {
     return (
@@ -6,23 +7,13 @@ function SidebarContainer() {
             style={{
                 width: '250px',
                 borderRight: '1px solid #ccc',
-                padding: '16px',
-                overflow: 'auto'
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
             }}
         >
-            <Text variant="subheader-2">Проекты</Text>
-            <div style={{ marginTop: '16px' }}>
-                <Text>Проект 1</Text><br/>
-                <Text>Проект 2</Text><br/>
-                <Text>Проект 3</Text>
-            </div>
-            
-            <Text variant="subheader-2" style={{ marginTop: '16px' }}>Файлы</Text>
-            <div style={{ marginTop: '16px' }}>
-                <Text>index.js</Text><br/>
-                <Text>style.css</Text><br/>
-                <Text>config.json</Text>
-            </div>
+            <ProjectEditor />
+            <ElementPanel />
         </div>
     );
 }
