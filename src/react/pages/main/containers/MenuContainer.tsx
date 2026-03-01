@@ -34,6 +34,34 @@ function MenuContainer() {
             <DropdownMenu
                 switcher={
                     <Button view="flat" size="l">
+                        Редактировать
+                    </Button>
+                }
+                items={[
+                    {
+                        text: 'Добавить модуль',
+                        action: () => {
+                            console.log('Добавить модуль');
+                        }
+                    },
+                    {
+                        text: 'Добавить ККТ',
+                        action: () => {
+                            console.log('Добавить ККТ');
+                        }
+                    },
+                    {
+                        text: 'Добавить приёмник данных',
+                        action: () => {
+                            console.log('Добавить приёмник данных');
+                        }
+                    }
+                ]}
+            />
+
+            <DropdownMenu
+                switcher={
+                    <Button view="flat" size="l">
                         Сборка
                     </Button>
                 }

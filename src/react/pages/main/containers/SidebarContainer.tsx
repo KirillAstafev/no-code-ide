@@ -13,6 +13,7 @@ function SidebarContainer() {
             }}
         >
             <ProjectEditor />
+            <div style={{ height: '1px', backgroundColor: '#666' }}/>
             <ElementPanel />
         </div>
     );
