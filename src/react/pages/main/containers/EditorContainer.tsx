@@ -1,10 +1,8 @@
-import { useState } from 'react';
-import { Tab, TabList, TabProvider, Button } from '@gravity-ui/uikit';
+import { Tab, TabList, TabProvider } from '@gravity-ui/uikit';
 import Editor from '../components/Editor';
-import ElementProperties from '../components/ElementProperties';
+import PropertiesContainer from './PropertiesContainer';
 
 function EditorContainer() {
-    const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
     const tabs = [
         { id: 'tab1', title: 'Модуль обработки НЕВА 03-Ф (Postgresql)' },
         { id: 'tab2', title: 'Модуль обработки в Kafka' },
@@ -22,22 +20,9 @@ function EditorContainer() {
                     ))}
                 </TabList>
             </TabProvider>
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <Editor />
-                </div>
-                <div style={{ position: 'absolute', right: '16px', top: '16px', zIndex: 10 }}>
-                    <Button
-                        view={isPropertiesOpen ? 'normal' : 'flat'}
-                        onClick={() => setIsPropertiesOpen(!isPropertiesOpen)}
-                    >
-                        Свойства
-                    </Button>
-                </div>
-                <ElementProperties
-                    isOpen={isPropertiesOpen}
-                    onClose={() => setIsPropertiesOpen(false)}
-                />
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                <Editor />
+                <PropertiesContainer />
             </div>
         </div>
     );

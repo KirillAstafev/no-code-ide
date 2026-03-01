@@ -1,25 +1,41 @@
-import { Drawer } from '@gravity-ui/uikit';
+import { Text } from '@gravity-ui/uikit';
 
 interface ElementPropertiesProps {
-    isOpen: boolean;
-    onClose: () => void;
+    isCollapsed: boolean;
 }
 
-function ElementProperties({ isOpen, onClose }: ElementPropertiesProps) {
+function ElementProperties({ isCollapsed }: ElementPropertiesProps) {
+    if (isCollapsed) {
+        return null;
+    }
+
     return (
-        <Drawer
-            open={isOpen}
-            onOpenChange={onClose}
-            placement="right"
-            resizable
-            size={300}
-            hideVeil={true}
+        <div
+            style={{
+                width: '20%',
+                minWidth: '200px',
+                borderLeft: '1px solid #ccc',
+                overflow: 'hidden',
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                display: 'flex',
+                flexDirection: 'column'
+            }}
         >
-            <Drawer.Header title="Свойства" />
-            <Drawer.Content>
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px',
+                    borderBottom: '1px solid #ccc'
+                }}
+            >
+                <Text variant="subheader-2">Свойства</Text>
+            </div>
+            <div style={{ padding: '16px', flex: 1, overflow: 'auto' }}>
                 {/* Здесь будет содержимое панели свойств */}
-            </Drawer.Content>
-        </Drawer>
+            </div>
+        </div>
     );
 }
 
