@@ -9,5 +9,8 @@ electron.contextBridge.exposeInMainWorld('electron', {
     },
     maximizeWindow: () => {
         electron.ipcRenderer.send('maximizeWindow');
+    },
+    openProjectDialog: () => {
+        return electron.ipcRenderer.invoke('openProjectDialog');
     }
 })

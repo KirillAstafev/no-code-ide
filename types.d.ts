@@ -3,6 +3,7 @@ interface Window {
         closeWindow: () => void;
         minimizeWindow: () => void;
         maximizeWindow: () => void;
+        openProjectDialog: () => Promise<{ path: string | null }>;
     }
 }
 
