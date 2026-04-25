@@ -1,6 +1,6 @@
 import { Button, DropdownMenu } from '@gravity-ui/uikit';
 import { useState } from 'react';
-import CreateProjectPage from '../../create/CreateProjectPage';
+import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
 
 function MenuContainer() {
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
@@ -9,7 +9,6 @@ function MenuContainer() {
         const result = await window.electron.openProjectDialog();
         if (result.path) {
             console.log('Открыт проект:', result.path);
-            // Здесь будет логика загрузки проекта
         }
     };
 

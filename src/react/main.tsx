@@ -5,7 +5,7 @@ import './styles.css'
 
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from "@gravity-ui/uikit";
-import MainPage from './pages/main/MainPage.tsx'
+import MainPage from './main/pages/MainPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <ThemeProvider theme="dark">
