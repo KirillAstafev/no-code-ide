@@ -43,7 +43,7 @@ export const ProjectBasicInfo: React.FC<ProjectBasicInfoProps> = ({
                     placeholder="~/IdeaProjects/JavaTutorials"
                     size="l"
                 />
-                <Text variant="caption-1" color="secondary" style={styles.pathHint}>
+                <Text variant="caption-2" color="secondary" style={styles.pathHint}>
                     Проект будет создан в: {projectPath}
                 </Text>
             </div>

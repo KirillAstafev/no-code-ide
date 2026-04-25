@@ -66,6 +66,7 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
             gap: '8px',
+            paddingTop: '8px',
         },
         addedDepsSection: {
             marginTop: '16px',
@@ -126,7 +127,7 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
                                 >
                                     <div>
                                         <div>{dep.name}</div>
-                                        <Text variant="caption-1" color="secondary">
+                                        <Text variant="caption-2" color="secondary">
                                             {dep.description}
                                         </Text>
                                     </div>
@@ -147,7 +148,7 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
                 <Text variant="subheader-2">Добавленные зависимости:</Text>
                 <div style={styles.addedDepsContainer}>
                     {selectedDependencies.length === 0 ? (
-                        <Text variant="caption-1" color="secondary" style={styles.emptyMessage}>
+                        <Text variant="body-1" color="secondary" style={styles.emptyMessage}>
                             Нет добавленных зависимостей
                         </Text>
                     ) : (
