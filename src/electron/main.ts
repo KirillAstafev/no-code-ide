@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
-import { createWindow } from "./window.js";
-import { getPreloadPath, ipcMainOn } from "./utils.js";
+import {app, BrowserWindow, dialog, ipcMain} from "electron";
+import {createWindow} from "./window.js";
+import {getPreloadPath} from "./utils/preload.js";
+import {ipcMainOn} from "./utils.js";
 
 let mainWindow: BrowserWindow | null = null;
 
