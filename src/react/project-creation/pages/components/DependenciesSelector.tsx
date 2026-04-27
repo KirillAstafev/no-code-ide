@@ -2,8 +2,8 @@ import React, {useState} from 'react';
 import {TextInput, Checkbox, Card, Button, Text, Label} from '@gravity-ui/uikit';
 
 interface DependenciesSelectorProps {
-    selectedDependencies: string[];
-    onDependenciesChange: (dependencies: string[]) => void;
+    selectedDependencies: ExternalDependency[];
+    onDependenciesChange: (dependencies: ExternalDependency[]) => void;
 }
 
 export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
@@ -13,12 +13,12 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
 
     const availableDependencies = [
-        {name: 'Apache Kafka', category: 'Messaging', description: 'Потоковая обработка событий'},
-        {name: 'PostgreSQL Driver', category: 'SQL', description: 'Драйвер для PostgreSQL'},
-        {name: 'ClickHouse JDBC', category: 'NoSQL', description: 'Колоночная база данных для аналитики'},
+        {name: 'Apache Kafka', category: 'Messaging', description: 'Потоковая обработка событий', dependencyCode: 'kafka'},
+        {name: 'PostgreSQL Driver', category: 'SQL', description: 'Драйвер для PostgreSQL', dependencyCode: 'postgresql'},
+        {name: 'ClickHouse JDBC', category: 'NoSQL', description: 'Колоночная база данных для аналитики', dependencyCode: 'clickhouse'},
     ];
 
-    const toggleDependency = (depName: string) => {
+    const toggleDependency = (depName: ExternalDependency) => {
         if (selectedDependencies.includes(depName)) {
             onDependenciesChange(selectedDependencies.filter(d => d !== depName));
         } else {
@@ -122,8 +122,8 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
                             {deps.map((dep) => (
                                 <Checkbox
                                     key={dep.name}
-                                    checked={selectedDependencies.includes(dep.name)}
-                                    onUpdate={() => toggleDependency(dep.name)}
+                                    checked={selectedDependencies.includes(dep)}
+                                    onUpdate={() => toggleDependency(dep)}
                                 >
                                     <div>
                                         <div>{dep.name}</div>
@@ -154,8 +154,8 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
                     ) : (
                         <div style={styles.tagsContainer}>
                             {selectedDependencies.map((dep) => (
-                                <Card key={dep} view="outlined" style={styles.tag}>
-                                    <span>{dep}</span>
+                                <Card key={dep.name} view="outlined" style={styles.tag}>
+                                    <span>{dep.name}</span>
                                     <Button
                                         view="flat"
                                         size="xs"

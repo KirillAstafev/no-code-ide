@@ -1,15 +1,14 @@
 import React from 'react';
 import {Label, Text, TextInput} from '@gravity-ui/uikit';
-import type {ProjectData} from '../../../../types/model.d.ts';
 
 interface ProjectBasicInfoProps {
-    projectData: ProjectData;
-    onUpdate: (updates: Partial<ProjectData>) => void;
+    project: Project;
+    onUpdate: (updates: Partial<Project>) => void;
     projectPath: string;
 }
 
 export const ProjectBasicInfo: React.FC<ProjectBasicInfoProps> = ({
-                                                                      projectData,
+                                                                      project,
                                                                       onUpdate,
                                                                       projectPath,
                                                                   }) => {
@@ -28,7 +27,7 @@ export const ProjectBasicInfo: React.FC<ProjectBasicInfoProps> = ({
             <div style={styles.row}>
                 <Label>Название проекта</Label>
                 <TextInput
-                    value={projectData.name}
+                    value={project.name}
                     onUpdate={(value) => onUpdate({name: value})}
                     placeholder="demo"
                     size="l"
@@ -38,7 +37,7 @@ export const ProjectBasicInfo: React.FC<ProjectBasicInfoProps> = ({
             <div style={styles.row}>
                 <Label>Расположение</Label>
                 <TextInput
-                    value={projectData.location}
+                    value={project.location}
                     onUpdate={(value) => onUpdate({location: value})}
                     placeholder="~/IdeaProjects/JavaTutorials"
                     size="l"

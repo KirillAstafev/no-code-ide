@@ -2,7 +2,6 @@ import React, {useState} from 'react';
 import {Button, Modal, Tab, TabList, TabPanel, TabProvider, Text} from '@gravity-ui/uikit';
 import {ProjectBasicInfo} from './components/ProjectBasicInfo';
 import {DependenciesSelector} from './components/DependenciesSelector';
-import type {ProjectData} from '../../../types/model.d.ts';
 
 interface CreateProjectPageProps {
     open: boolean;
@@ -16,36 +15,25 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                                                                  onCreate,
                                                              }) => {
     const [activeTab, setActiveTab] = useState<CreateProjectTab>('basic');
-    const [projectData, setProjectData] = useState<ProjectData>({
-        serverURL: 'start.spring.io',
+    const [project, setProject] = useState<Project>({
         name: 'demo',
         location: '~/IdeaProjects/JavaTutorials',
-        createGitRepo: false,
-        language: 'Java',
-        buildSystem: 'Maven',
-        groupId: 'com.example',
-        artifactId: 'demo',
-        packageName: 'com.example.demo',
-        jdkVersion: '25',
-        javaVersion: '17',
-        packaging: 'Jar',
-        configFormat: 'Properties',
-        springBootVersion: '4.0.6',
+        modules: [],
         dependencies: [],
     });
 
     const handleCreate = () => {
-        onCreate(projectData.name);
+        onCreate(project.name);
         onClose();
     };
 
-    const updateProjectData = (updates: Partial<ProjectData>) => {
-        setProjectData(prev => ({...prev, ...updates}));
+    const updateProject = (updates: Partial<Project>) => {
+        setProject(prev => ({...prev, ...updates}));
     };
 
     const getProjectPath = () => {
-        const basePath = projectData.location.replace(/^~/, '');
-        return `${basePath}/${projectData.name}`;
+        const basePath = project.location.replace(/^~/, '');
+        return `${basePath}/${project.name}`;
     };
 
     const styles = {
@@ -105,16 +93,16 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                         <div style={styles.contentWrapper}>
                             <TabPanel value="basic">
                                 <ProjectBasicInfo
-                                    projectData={projectData}
-                                    onUpdate={updateProjectData}
+                                    project={project}
+                                    onUpdate={updateProject}
                                     projectPath={getProjectPath()}
                                 />
                             </TabPanel>
 
                             <TabPanel value="dependencies">
                                 <DependenciesSelector
-                                    selectedDependencies={projectData.dependencies}
-                                    onDependenciesChange={(deps) => updateProjectData({dependencies: deps})}
+                                    selectedDependencies={project.dependencies}
+                                    onDependenciesChange={(deps) => updateProject({dependencies: deps})}
                                 />
                             </TabPanel>
                         </div>
