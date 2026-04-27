@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Button, Label, Modal, Select, Tab, TabList, TabPanel, TabProvider, Text} from '@gravity-ui/uikit';
+import {Button, Modal, Tab, TabList, TabPanel, TabProvider, Text} from '@gravity-ui/uikit';
 import {ProjectBasicInfo} from './components/ProjectBasicInfo';
 import {DependenciesSelector} from './components/DependenciesSelector';
 import type {ProjectData} from '../../../types/model.d.ts';
@@ -15,7 +15,7 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                                                                  onClose,
                                                                  onCreate,
                                                              }) => {
-    const [activeTab, setActiveTab] = useState<'basic' | 'spring'>('basic');
+    const [activeTab, setActiveTab] = useState<'basic' | 'dependencies'>('basic');
     const [projectData, setProjectData] = useState<ProjectData>({
         serverURL: 'start.spring.io',
         name: 'demo',
@@ -96,10 +96,10 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                 </div>
 
                 <div style={styles.body}>
-                    <TabProvider value={activeTab} onUpdate={(value) => setActiveTab(value as 'basic' | 'spring')}>
+                    <TabProvider value={activeTab} onUpdate={(value) => setActiveTab(value as 'basic' | 'dependencies')}>
                         <TabList size="l">
                             <Tab value="basic">Основные параметры</Tab>
-                            <Tab value="spring">Spring Boot</Tab>
+                            <Tab value="dependencies">Настройка зависимостей</Tab>
                         </TabList>
 
                         <div style={styles.contentWrapper}>
@@ -111,22 +111,7 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                                 />
                             </TabPanel>
 
-                            <TabPanel value="spring">
-                                <div style={styles.springVersionWrapper}>
-                                    <Label>Spring Boot версия</Label>
-                                    <Select
-                                        value={[projectData.springBootVersion]}
-                                        onUpdate={(value) => updateProjectData({springBootVersion: value[0]})}
-                                        options={[
-                                            {value: '4.0.6', content: 'Spring Boot 4.0.6'},
-                                            {value: '3.4.5', content: 'Spring Boot 3.4.5'},
-                                            {value: '3.3.10', content: 'Spring Boot 3.3.10'},
-                                            {value: '2.7.18', content: 'Spring Boot 2.7.18'},
-                                        ]}
-                                        width="max"
-                                    />
-                                </div>
-
+                            <TabPanel value="dependencies">
                                 <DependenciesSelector
                                     selectedDependencies={projectData.dependencies}
                                     onDependenciesChange={(deps) => updateProjectData({dependencies: deps})}
@@ -141,17 +126,17 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                         Отмена
                     </Button>
                     <div style={styles.buttonGroup}>
-                        {activeTab === 'spring' && (
+                        {activeTab === 'dependencies' && (
                             <Button view="normal" onClick={() => setActiveTab('basic')}>
                                 Назад
                             </Button>
                         )}
-                        {activeTab === 'spring' ? (
+                        {activeTab === 'dependencies' ? (
                             <Button view="action" onClick={handleCreate}>
                                 Создать
                             </Button>
                         ) : (
-                            <Button view="action" onClick={() => setActiveTab('spring')}>
+                            <Button view="action" onClick={() => setActiveTab('dependencies')}>
                                 Далее
                             </Button>
                         )}
