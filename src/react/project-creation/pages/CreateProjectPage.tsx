@@ -15,7 +15,7 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                                                                  onClose,
                                                                  onCreate,
                                                              }) => {
-    const [activeTab, setActiveTab] = useState<'basic' | 'dependencies'>('basic');
+    const [activeTab, setActiveTab] = useState<CreateProjectTab>('basic');
     const [projectData, setProjectData] = useState<ProjectData>({
         serverURL: 'start.spring.io',
         name: 'demo',
@@ -96,7 +96,7 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                 </div>
 
                 <div style={styles.body}>
-                    <TabProvider value={activeTab} onUpdate={(value) => setActiveTab(value as 'basic' | 'dependencies')}>
+                    <TabProvider value={activeTab} onUpdate={(value) => setActiveTab(value as CreateProjectTab)}>
                         <TabList size="l">
                             <Tab value="basic">Основные параметры</Tab>
                             <Tab value="dependencies">Настройка зависимостей</Tab>
@@ -126,17 +126,17 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                         Отмена
                     </Button>
                     <div style={styles.buttonGroup}>
-                        {activeTab === 'dependencies' && (
-                            <Button view="normal" onClick={() => setActiveTab('basic')}>
+                        {activeTab === "dependencies" && (
+                            <Button view="normal" onClick={() => setActiveTab("basic")}>
                                 Назад
                             </Button>
                         )}
-                        {activeTab === 'dependencies' ? (
+                        {activeTab === "dependencies" ? (
                             <Button view="action" onClick={handleCreate}>
                                 Создать
                             </Button>
                         ) : (
-                            <Button view="action" onClick={() => setActiveTab('dependencies')}>
+                            <Button view="action" onClick={() => setActiveTab("dependencies")}>
                                 Далее
                             </Button>
                         )}

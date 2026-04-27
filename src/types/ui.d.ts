@@ -8,3 +8,5 @@ interface Window {
 }
 
 type WindowAction = "closeWindow" | "minimizeWindow" | "maximizeWindow";
+
+type CreateProjectTab = "basic" | "dependencies";
