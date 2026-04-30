@@ -2,15 +2,28 @@ const electron = require('electron');
 
 electron.contextBridge.exposeInMainWorld('electron', {
     closeWindow: () => {
-        electron.ipcRenderer.send('closeWindow');
+        ipcRendererSend('closeWindow');
     },
     minimizeWindow: () => {
-        electron.ipcRenderer.send('minimizeWindow');
+        ipcRendererSend('minimizeWindow');
     },
     maximizeWindow: () => {
-        electron.ipcRenderer.send('maximizeWindow');
+        ipcRendererSend('maximizeWindow');
     },
     openProjectDialog: () => {
-        return electron.ipcRenderer.invoke('openProjectDialog');
+        return ipcRendererInvoke('openProjectDialog');
     }
-})
+});
+
+export function ipcRendererSend<Key extends keyof ChannelPayloadMapping>(
+    key: Key,
+    payload?: ChannelPayloadMapping[Key]
+) {
+    electron.ipcRenderer.send(key, payload);
+}
+
+export function ipcRendererInvoke<Key extends keyof ChannelPayloadMapping>(
+    key: Key
+): Promise<ChannelPayloadMapping[Key]> {
+    return electron.ipcRenderer.invoke(key);
+}

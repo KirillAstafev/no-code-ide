@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "types": ["../types/model", "../types/ui"],
+    "types": ["../types/model", "../types/ui", "../types/ipc"],
     "target": "ESNext",
     "module": "NodeNext",
     "esModuleInterop": true,

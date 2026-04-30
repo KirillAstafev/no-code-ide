@@ -1,7 +1,7 @@
-import {app, BrowserWindow, dialog, ipcMain} from "electron";
+import {app, BrowserWindow, dialog} from "electron";
 import {createWindow} from "./window.js";
 import {getPreloadPath} from "./utils/preload.js";
-import {ipcMainOn} from "./utils.js";
+import {ipcMainHandle, ipcMainOn} from "./ipc/main.js";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -26,7 +26,7 @@ app.on("ready", () => {
         mainWindow?.maximize();
     });
 
-    ipcMain.handle("openProjectDialog", async () => {
+    ipcMainHandle("openProjectDialog", async () => {
         const result = await dialog.showOpenDialog(mainWindow!, {
             properties: ['openDirectory'],
             title: 'Открыть проект'
