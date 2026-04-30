@@ -1,5 +1,5 @@
 import React from 'react';
-import {Label, Text, TextInput} from '@gravity-ui/uikit';
+import {Button, Label, Text, TextInput} from '@gravity-ui/uikit';
 
 interface ProjectBasicInfoProps {
     project: Project;
@@ -12,6 +12,13 @@ export const ProjectBasicInfo: React.FC<ProjectBasicInfoProps> = ({
                                                                       onUpdate,
                                                                       projectPath,
                                                                   }) => {
+    const handleSelectFolder = async () => {
+        const folder = await window.electron.selectFolder();
+        if (folder) {
+            onUpdate({location: folder});
+        }
+    };
+
     const styles = {
         pathHint: {
             marginTop: '4px',
@@ -19,6 +26,11 @@ export const ProjectBasicInfo: React.FC<ProjectBasicInfoProps> = ({
         },
         row: {
             marginBottom: '16px',
+        },
+        buttonRow: {
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'flex-end',
         },
     };
 
@@ -36,12 +48,18 @@ export const ProjectBasicInfo: React.FC<ProjectBasicInfoProps> = ({
 
             <div style={styles.row}>
                 <Label>Расположение</Label>
-                <TextInput
-                    value={project.location}
-                    onUpdate={(value) => onUpdate({location: value})}
-                    placeholder="~/IdeaProjects/JavaTutorials"
-                    size="l"
-                />
+                <div style={styles.buttonRow}>
+                    <TextInput
+                        value={project.location}
+                        onUpdate={(value) => onUpdate({location: value})}
+                        placeholder="~/IdeaProjects/JavaTutorials"
+                        size="l"
+                        style={{flex: 1}}
+                    />
+                    <Button onClick={handleSelectFolder} size="l">
+                        Обзор
+                    </Button>
+                </div>
                 <Text variant="caption-2" color="secondary" style={styles.pathHint}>
                     Проект будет создан в: {projectPath}
                 </Text>

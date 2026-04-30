@@ -22,9 +22,25 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
         dependencies: [],
     });
 
-    const handleCreate = () => {
-        onCreate(project.name);
-        onClose();
+    const handleCreate = async () => {
+        if (!project.name.trim()) {
+            alert('Укажите название проекта');
+            return;
+        }
+
+        try {
+            const result = await window.electron.createProjectFiles(project);
+
+            if (result.success) {
+                alert(`Проект "${project.name}" успешно создан в ${result.path}`);
+                onCreate(project.name);
+                onClose();
+            } else {
+                alert(`Ошибка создания: ${result.error}`);
+            }
+        } catch (error) {
+            alert(`Ошибка: ${(error as Error).message}`);
+        }
     };
 
     const updateProject = (updates: Partial<Project>) => {

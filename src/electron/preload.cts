@@ -12,6 +12,12 @@ electron.contextBridge.exposeInMainWorld('electron', {
     },
     openProjectDialog: () => {
         return ipcRendererInvoke('openProjectDialog');
+    },
+    createProjectFiles: (data: Project) => {
+        return electron.ipcRenderer.invoke('createProjectFiles', data);
+    },
+    selectFolder: () => {
+        return electron.ipcRenderer.invoke('selectFolder');
     }
 });
 
