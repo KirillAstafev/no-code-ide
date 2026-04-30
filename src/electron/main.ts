@@ -110,6 +110,39 @@ app.on("ready", () => {
         }
     });
 
+    ipcMain.handle('loadProject', async (event, projectPath: string) => {
+        try {
+            const projectConfigPath = path.join(projectPath, 'project.json');
+            const projectConfigRaw = await fs.readFile(projectConfigPath, 'utf-8');
+            const project = JSON.parse(projectConfigRaw) as Project;
+
+            const schemaPath = path.join(projectPath, 'schema.json');
+            const schemaRaw = await fs.readFile(schemaPath, 'utf-8');
+            const schema = JSON.parse(schemaRaw);
+
+            const modulesDir = path.join(projectPath, 'modules');
+            const moduleNames = await fs.readdir(modulesDir);
+            const modules = [];
+
+            for (const moduleName of moduleNames) {
+                const moduleFilePath = path.join(modulesDir, moduleName, `${moduleName}.json`);
+                const moduleRaw = await fs.readFile(moduleFilePath, 'utf-8');
+                const moduleData = JSON.parse(moduleRaw);
+                modules.push(moduleData);
+            }
+
+            return {
+                success: true,
+                project: project,
+                schema: schema,
+                modules: modules
+            };
+        } catch (error) {
+            console.error('Ошибка загрузки проекта:', error);
+            return { success: false, error: (error as Error).message };
+        }
+    });
+
     ipcMain.handle('selectFolder', async () => {
         const result = await dialog.showOpenDialog({
             properties: ['openDirectory', 'createDirectory'],
