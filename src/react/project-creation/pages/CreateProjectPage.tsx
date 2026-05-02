@@ -29,7 +29,7 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
         }
 
         try {
-            const result = await window.electron.createProjectFiles(project);
+            const result = await window.electron.createProject(project);
 
             if (result.success) {
                 alert(`Проект "${project.name}" успешно создан в ${result.path}`);

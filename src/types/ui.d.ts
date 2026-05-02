@@ -4,7 +4,7 @@ interface Window {
         minimizeWindow: () => void;
         maximizeWindow: () => void;
         openProjectDialog: () => Promise<{ path: string | null }>;
-        createProjectFiles: (Project) => Promise<{success: boolean, path?: string, error?: string}>;
+        createProject: (Project) => Promise<{success: boolean, path?: string, error?: string}>;
         selectFolder: () => Promise<string | null>;
     }
 }
