@@ -1,8 +1,40 @@
+interface SchemaNode {
+    id: string;
+    type: 'module' | 'source' | 'destination';
+    label: string;
+    caption?: string;
+    x?: number;
+    y?: number;
+    data: Module | DataSource | DataDestination;
+}
+
+interface SchemaEdge {
+    id: string;
+    source: string;
+    target: string;
+    label?: string;
+    style?: 'solid' | 'dashed';
+    arrowhead?: 'none' | 'arrow' | 'dot';
+}
+
+interface Schema {
+    nodes: SchemaNode[];
+    edges: SchemaEdge[];
+    metadata?: {
+        zoom?: number;
+        offsetX?: number;
+        offsetY?: number;
+        layout?: 'dagre' | 'force' | 'grid';
+        [key: string]: any;
+    };
+}
+
 interface Project {
     name: string;
     location: string;
     modules: Module[];
     dependencies: ExternalDependency[];
+    schema: Schema;
 }
 
 interface Module {
