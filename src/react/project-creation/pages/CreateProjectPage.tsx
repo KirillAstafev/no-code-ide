@@ -17,7 +17,8 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
     const [activeTab, setActiveTab] = useState<CreateProjectTab>('basic');
     const [project, setProject] = useState<Project>({
         name: 'demo',
-        location: '~/IdeaProjects/JavaTutorials',
+        location: '~/MSCProjects',
+        schema: {},
         modules: [],
         dependencies: [],
     });

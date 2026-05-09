@@ -18,8 +18,8 @@ interface SchemaEdge {
 }
 
 interface Schema {
-    nodes: SchemaNode[];
-    edges: SchemaEdge[];
+    nodes?: SchemaNode[];
+    edges?: SchemaEdge[];
     metadata?: {
         zoom?: number;
         offsetX?: number;
