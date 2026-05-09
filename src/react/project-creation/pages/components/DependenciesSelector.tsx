@@ -13,16 +13,32 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
 
     const availableDependencies = [
-        {name: 'Apache Kafka', category: 'Messaging', description: 'Потоковая обработка событий', dependencyCode: 'kafka'},
-        {name: 'PostgreSQL Driver', category: 'SQL', description: 'Драйвер для PostgreSQL', dependencyCode: 'postgresql'},
-        {name: 'ClickHouse JDBC', category: 'NoSQL', description: 'Колоночная база данных для аналитики', dependencyCode: 'clickhouse'},
+        {
+            name: 'Apache Kafka',
+            category: 'Messaging',
+            description: 'Потоковая обработка событий',
+            dependencyCode: 'kafka'
+        },
+        {
+            name: 'PostgreSQL Driver',
+            category: 'SQL',
+            description: 'Драйвер для PostgreSQL',
+            dependencyCode: 'postgresql'
+        },
+        {
+            name: 'ClickHouse JDBC',
+            category: 'NoSQL',
+            description: 'Колоночная база данных для аналитики',
+            dependencyCode: 'clickhouse'
+        },
     ];
 
-    const toggleDependency = (depName: ExternalDependency) => {
-        if (selectedDependencies.includes(depName)) {
-            onDependenciesChange(selectedDependencies.filter(d => d !== depName));
+    const toggleDependency = (dep: ExternalDependency) => {
+        const isSelected = selectedDependencies.some(d => d.dependencyCode === dep.dependencyCode);
+        if (isSelected) {
+            onDependenciesChange(selectedDependencies.filter(d => d.dependencyCode !== dep.dependencyCode));
         } else {
-            onDependenciesChange([...selectedDependencies, depName]);
+            onDependenciesChange([...selectedDependencies, dep]);
         }
     };
 
@@ -119,20 +135,25 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
                             {category}
                         </Text>
                         <div style={styles.dependenciesGrid}>
-                            {deps.map((dep) => (
-                                <Checkbox
-                                    key={dep.name}
-                                    checked={selectedDependencies.includes(dep)}
-                                    onUpdate={() => toggleDependency(dep)}
-                                >
-                                    <div>
-                                        <div>{dep.name}</div>
-                                        <Text variant="caption-2" color="secondary">
-                                            {dep.description}
-                                        </Text>
-                                    </div>
-                                </Checkbox>
-                            ))}
+                            {deps.map((dep) => {
+                                const isSelected = selectedDependencies.some(
+                                    d => d.dependencyCode === dep.dependencyCode
+                                );
+                                return (
+                                    <Checkbox
+                                        key={dep.dependencyCode}
+                                        checked={isSelected}
+                                        onUpdate={() => toggleDependency(dep)}
+                                    >
+                                        <div>
+                                            <div>{dep.name}</div>
+                                            <Text variant="caption-2" color="secondary">
+                                                {dep.description}
+                                            </Text>
+                                        </div>
+                                    </Checkbox>
+                                );
+                            })}
                         </div>
                     </div>
                 ))}
