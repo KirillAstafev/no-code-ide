@@ -8,7 +8,14 @@ function MenuContainer() {
     const handleOpenProject = async () => {
         const result = await window.electron.openProjectDialog();
         if (result.path) {
-            console.log('Открыт проект:', result.path);
+            const projectResult = await window.electron.loadProject(result.path);
+
+            if (projectResult.success && projectResult.project) {
+                console.log(projectResult.project);
+                // onProjectLoaded(projectResult.project);
+            } else {
+                throw new Error(projectResult.error || 'Неизвестная ошибка загрузки');
+            }
         }
     };
 

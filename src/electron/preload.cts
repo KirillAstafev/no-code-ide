@@ -16,6 +16,8 @@ electron.contextBridge.exposeInMainWorld('electron', {
     createProject: (data: Project) => {
         return electron.ipcRenderer.invoke('createProject', data);
     },
+    loadProject: (projectPath: string) =>
+        electron.ipcRenderer.invoke('loadProject', projectPath),
     selectFolder: () => {
         return electron.ipcRenderer.invoke('selectFolder');
     }
