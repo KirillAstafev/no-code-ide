@@ -43,7 +43,10 @@ function MenuContainer() {
     };
 
     const handleCloseProject = () => {
-        clearProject();
+        const confirm = window.confirm('Вы уверены, что хотите закрыть проект? Все несохранённые изменения будут потеряны.');
+        if (confirm) {
+            clearProject();
+        }
     };
 
     return (
@@ -88,10 +91,12 @@ function MenuContainer() {
                         },
                         {
                             text: 'Сохранить проект',
+                            disabled: !useProject().state.isLoaded,
                             action: handleSaveProject,
                         },
                         {
                             text: 'Закрыть проект',
+                            disabled: !useProject().state.isLoaded,
                             action: handleCloseProject
                         }
                     ]}
