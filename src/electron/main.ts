@@ -2,7 +2,7 @@ import {app, BrowserWindow, dialog, ipcMain} from "electron";
 import {createWindow} from "./window.js";
 import {getPreloadPath} from "./utils/preload.js";
 import {ipcMainHandle, ipcMainOn} from "./ipc/main.js";
-import {createProject, loadProject} from "./utils/project.js";
+import {createProject, loadProject, saveProject} from "./utils/project.js";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -42,4 +42,6 @@ app.on("ready", () => {
 
         return result.canceled ? null : result.filePaths[0];
     });
+
+    ipcMain.handle('saveProject', saveProject);
 });

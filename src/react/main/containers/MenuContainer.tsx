@@ -1,8 +1,10 @@
 import { Button, DropdownMenu } from '@gravity-ui/uikit';
 import { useState } from 'react';
 import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
+import {useProject} from "../../context/ProjectContext.tsx";
 
 function MenuContainer() {
+    const { loadProject, saveProject } = useProject();
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
     const handleOpenProject = async () => {
@@ -11,7 +13,7 @@ function MenuContainer() {
             const projectResult = await window.electron.loadProject(result.path);
 
             if (projectResult.success && projectResult.project) {
-                console.log(projectResult.project);
+                loadProject(projectResult.project);
                 // onProjectLoaded(projectResult.project);
             } else {
                 throw new Error(projectResult.error || 'Неизвестная ошибка загрузки');
@@ -22,6 +24,15 @@ function MenuContainer() {
     const handleCreateProject = (projectName: string) => {
         console.log('Создан проект:', projectName);
         setIsNewProjectModalOpen(false);
+    };
+
+    const handleSaveProject = async () => {
+        try {
+            await saveProject();
+            alert('Проект успешно сохранён!');
+        } catch (err) {
+            alert(`Ошибка сохранения: ${err}`);
+        }
     };
 
     return (
@@ -45,6 +56,10 @@ function MenuContainer() {
                             action: handleOpenProject
                         },
                         {
+                            text: 'Сохранить проект',
+                            action: handleSaveProject,
+                        },
+                        {
                             text: 'Закрыть',
                             action: () => {
                                 window.electron.closeWindow();
@@ -62,18 +77,21 @@ function MenuContainer() {
                     items={[
                         {
                             text: 'Добавить модуль',
+                            disabled: !useProject().state.isLoaded,
                             action: () => {
                                 console.log('Добавить модуль');
                             }
                         },
                         {
                             text: 'Добавить ККТ',
+                            disabled: !useProject().state.isLoaded,
                             action: () => {
                                 console.log('Добавить ККТ');
                             }
                         },
                         {
                             text: 'Добавить приёмник данных',
+                            disabled: !useProject().state.isLoaded,
                             action: () => {
                                 console.log('Добавить приёмник данных');
                             }
@@ -90,14 +108,9 @@ function MenuContainer() {
                     items={[
                         {
                             text: 'Собрать проект',
+                            disabled: !useProject().state.isLoaded,
                             action: () => {
                                 console.log('Собрать проект');
-                            }
-                        },
-                        {
-                            text: 'Пересобрать проект',
-                            action: () => {
-                                console.log('Пересобрать проект');
                             }
                         }
                     ]}

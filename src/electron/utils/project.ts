@@ -181,3 +181,57 @@ export const loadProject = async (
         return { success: false, error: (error as Error).message };
     }
 }
+
+export const saveProject = async (
+    event: IpcMainInvokeEvent,
+    project: Project
+): Promise<{ success: boolean; path?: string; error?: string }> => {
+    try {
+        const projectDir = project.location;
+
+        // Обновляем project.json
+        await fs.writeFile(
+            path.join(projectDir, 'project.json'),
+            JSON.stringify(
+                {
+                    name: project.name,
+                    version: '1.0.0',
+                    created: new Date().toISOString(),
+                    dependencies: project.dependencies.map(d => ({
+                        name: d.name,
+                        code: d.dependencyCode,
+                        category: d.category
+                    })),
+                    modules: project.modules.map(m => m.name)
+                },
+                null,
+                2
+            ),
+            'utf-8'
+        );
+
+        // Пересохраняем схему
+        await fs.writeFile(
+            path.join(projectDir, 'schema.json'),
+            JSON.stringify(project.schema, null, 2),
+            'utf-8'
+        );
+
+        // Пересохраняем модули
+        const modulesDir = path.join(projectDir, 'modules');
+        for (const module of project.modules) {
+            const moduleDir = path.join(modulesDir, module.name);
+            await fs.mkdir(moduleDir, { recursive: true });
+            await fs.writeFile(
+                path.join(moduleDir, `${module.name}.json`),
+                JSON.stringify(module, null, 2),
+                'utf-8'
+            );
+        }
+
+        return { success: true, path: projectDir };
+    } catch (error) {
+        console.error('Ошибка сохранения проекта:', error);
+        return { success: false, error: (error as Error).message };
+    }
+};
