@@ -6,7 +6,7 @@ import {DependenciesSelector} from './components/DependenciesSelector';
 interface CreateProjectPageProps {
     open: boolean;
     onClose: () => void;
-    onCreate: (projectName: string) => void;
+    onCreate: (projectPath: string | undefined) => void;
 }
 
 const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
@@ -34,7 +34,7 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
 
             if (result.success) {
                 alert(`Проект "${project.name}" успешно создан в ${result.path}`);
-                onCreate(project.name);
+                onCreate(result.path);
                 onClose();
             } else {
                 alert(`Ошибка создания: ${result.error}`);

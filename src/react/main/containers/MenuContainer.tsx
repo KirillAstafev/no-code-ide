@@ -21,10 +21,14 @@ function MenuContainer() {
         }
     };
 
-    const handleCreateProject = (projectName: string) => {
-        console.log('Создан проект:', projectName);
-        setIsNewProjectModalOpen(false);
-    };
+    const handleCreateProject = async (projectPath: string | undefined) => {
+        const projectResult = await window.electron.loadProject(projectPath as string);
+
+        if (projectResult.success && projectResult.project) {
+            loadProject(projectResult.project);
+            setIsNewProjectModalOpen(false);
+        }
+    }
 
     const handleSaveProject = async () => {
         try {
