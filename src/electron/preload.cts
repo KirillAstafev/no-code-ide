@@ -22,6 +22,7 @@ electron.contextBridge.exposeInMainWorld('electron', {
         return electron.ipcRenderer.invoke('selectFolder');
     },
     saveProject: (project: Project) => electron.ipcRenderer.invoke('saveProject', project),
+    createWindow: () => electron.ipcRenderer.invoke('createWindow'),
 });
 
 export function ipcRendererSend<Key extends keyof ChannelPayloadMapping>(

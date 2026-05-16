@@ -4,7 +4,7 @@ import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
 import {useProject} from "../../context/ProjectContext.tsx";
 
 function MenuContainer() {
-    const { loadProject, saveProject } = useProject();
+    const { loadProject, saveProject, clearProject } = useProject();
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
     const handleOpenProject = async () => {
@@ -14,7 +14,6 @@ function MenuContainer() {
 
             if (projectResult.success && projectResult.project) {
                 loadProject(projectResult.project);
-                // onProjectLoaded(projectResult.project);
             } else {
                 throw new Error(projectResult.error || 'Неизвестная ошибка загрузки');
             }
@@ -39,18 +38,46 @@ function MenuContainer() {
         }
     };
 
+    const handleNewWindow = () => {
+        window.electron.createWindow();
+    };
+
+    const handleCloseProject = () => {
+        clearProject();
+    };
+
     return (
         <>
             <div style={{ padding: '4px 8px', display: 'flex', gap: '4px' }} id="menu-container">
                 <DropdownMenu
                     switcher={
                         <Button view="flat" size="l">
-                            Файл
+                            Окно
                         </Button>
                     }
                     items={[
                         {
-                            text: 'Создать новый проект',
+                            text: 'Новое окно',
+                            action: handleNewWindow,
+                        },
+                        {
+                            text: 'Закрыть',
+                            action: () => {
+                                window.electron.closeWindow();
+                            }
+                        }
+                    ]}
+                />
+
+                <DropdownMenu
+                    switcher={
+                        <Button view="flat" size="l">
+                            Проект
+                        </Button>
+                    }
+                    items={[
+                        {
+                            text: 'Создать проект',
                             action: () => {
                                 setIsNewProjectModalOpen(true);
                             }
@@ -64,10 +91,8 @@ function MenuContainer() {
                             action: handleSaveProject,
                         },
                         {
-                            text: 'Закрыть',
-                            action: () => {
-                                window.electron.closeWindow();
-                            }
+                            text: 'Закрыть проект',
+                            action: handleCloseProject
                         }
                     ]}
                 />

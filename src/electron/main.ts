@@ -44,4 +44,13 @@ app.on("ready", () => {
     });
 
     ipcMain.handle('saveProject', saveProject);
+    ipcMain.handle('window:create', () => {
+        createWindow("http://localhost:5123", {
+            fullscreen: true,
+            show: false,
+            webPreferences: {
+                preload: getPreloadPath()
+            }
+        });
+    });
 });

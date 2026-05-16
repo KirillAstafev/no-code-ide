@@ -8,6 +8,7 @@ interface Window {
         loadProject: (projectPath: string) => Promise<{success: boolean, project?: Project, error?: string}>
         saveProject: (Project) => Promise<{success: boolean, path?: string, error?: string}>;
         selectFolder: () => Promise<string | null>;
+        createWindow: () => Promise<any>;
     }
 }
 
