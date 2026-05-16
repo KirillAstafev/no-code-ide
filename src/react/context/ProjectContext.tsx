@@ -4,40 +4,51 @@ type ProjectAction =
     | { type: 'LOAD_PROJECT'; payload: Project }
     | { type: 'UPDATE_PROJECT'; payload: Partial<Project> }
     | { type: 'CLEAR_PROJECT' }
-    | { type: 'SAVE_SUCCESS'; payload: { path: string | undefined } };
+    | { type: 'SAVE_SUCCESS' }
+    | { type: 'SET_MODIFIED'; payload: boolean };
 
 interface ProjectState {
     project: Project | null;
-    projectPath: string | undefined | null;
+    projectPath: string | null;
     isLoaded: boolean;
+    isModified: boolean;
 }
 
 const initialState: ProjectState = {
     project: null,
     projectPath: null,
     isLoaded: false,
+    isModified: false,
 };
 
 const projectReducer = (state: ProjectState, action: ProjectAction): ProjectState => {
     switch (action.type) {
         case 'LOAD_PROJECT':
             return {
+                ...state,
                 project: action.payload,
                 projectPath: action.payload.location,
                 isLoaded: true,
+                isModified: false,
             };
         case 'UPDATE_PROJECT':
             if (!state.project) return state;
             return {
                 ...state,
                 project: { ...state.project, ...action.payload },
+                isModified: true,
             };
         case 'CLEAR_PROJECT':
             return initialState;
         case 'SAVE_SUCCESS':
             return {
                 ...state,
-                projectPath: action.payload.path,
+                isModified: false,
+            };
+        case 'SET_MODIFIED':
+            return {
+                ...state,
+                isModified: action.payload,
             };
         default:
             return state;
@@ -77,7 +88,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             const result = await window.electron.saveProject(projectToSave);
 
             if (result.success) {
-                dispatch({ type: 'SAVE_SUCCESS', payload: { path: result.path } });
+                dispatch({ type: 'SAVE_SUCCESS' });
             } else {
                 throw new Error(result.error);
             }

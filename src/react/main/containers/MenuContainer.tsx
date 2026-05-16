@@ -4,7 +4,8 @@ import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
 import {useProject} from "../../context/ProjectContext.tsx";
 
 function MenuContainer() {
-    const { loadProject, saveProject, clearProject } = useProject();
+    const { loadProject, saveProject, clearProject, state } = useProject();
+    const { isLoaded, isModified, project } = state;
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
     const handleOpenProject = async () => {
@@ -76,6 +77,18 @@ function MenuContainer() {
                     switcher={
                         <Button view="flat" size="l">
                             Проект
+                            {isModified && (
+                                <span
+                                    style={{
+                                        marginLeft: '6px',
+                                        color: 'var(--g-color-text-warning)',
+                                        fontSize: '10px',
+                                        fontWeight: 'bold',
+                                    }}
+                                >
+                                    •
+                                </span>
+                            )}
                         </Button>
                     }
                     items={[
@@ -91,12 +104,12 @@ function MenuContainer() {
                         },
                         {
                             text: 'Сохранить проект',
-                            disabled: !useProject().state.isLoaded,
+                            disabled: !isLoaded,
                             action: handleSaveProject,
                         },
                         {
                             text: 'Закрыть проект',
-                            disabled: !useProject().state.isLoaded,
+                            disabled: !isLoaded,
                             action: handleCloseProject
                         }
                     ]}
@@ -111,21 +124,21 @@ function MenuContainer() {
                     items={[
                         {
                             text: 'Добавить модуль',
-                            disabled: !useProject().state.isLoaded,
+                            disabled: !isLoaded,
                             action: () => {
                                 console.log('Добавить модуль');
                             }
                         },
                         {
                             text: 'Добавить ККТ',
-                            disabled: !useProject().state.isLoaded,
+                            disabled: !isLoaded,
                             action: () => {
                                 console.log('Добавить ККТ');
                             }
                         },
                         {
                             text: 'Добавить приёмник данных',
-                            disabled: !useProject().state.isLoaded,
+                            disabled: !isLoaded,
                             action: () => {
                                 console.log('Добавить приёмник данных');
                             }
@@ -142,7 +155,7 @@ function MenuContainer() {
                     items={[
                         {
                             text: 'Собрать проект',
-                            disabled: !useProject().state.isLoaded,
+                            disabled: !isLoaded,
                             action: () => {
                                 console.log('Собрать проект');
                             }
@@ -156,6 +169,20 @@ function MenuContainer() {
                 onClose={() => setIsNewProjectModalOpen(false)}
                 onCreate={handleCreateProject}
             />
+
+            {isLoaded && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        fontSize: '12px',
+                        color: isModified ? 'var(--g-color-text-warning)' : 'var(--g-color-text-secondary)',
+                    }}
+                >
+                    {project?.name} {isModified ? '• Не сохранено' : '✓ Сохранено'}
+                </div>
+            )}
         </>
     );
 }
