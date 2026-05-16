@@ -56,62 +56,46 @@ function MenuContainer() {
                 <DropdownMenu
                     switcher={
                         <Button view="flat" size="l">
-                            Окно
+                            Общие
                         </Button>
                     }
                     items={[
-                        {
-                            text: 'Новое окно',
-                            action: handleNewWindow,
-                        },
-                        {
-                            text: 'Закрыть',
-                            action: () => {
-                                window.electron.closeWindow();
+                        [
+                            {
+                                text: 'Новое окно',
+                                action: handleNewWindow,
+                            },
+                            {
+                                text: 'Новый проект',
+                                action: () => {
+                                    setIsNewProjectModalOpen(true);
+                                }
+                            },
+                        ],
+                        [
+                            {
+                                text: 'Открыть проект',
+                                action: handleOpenProject
+                            },
+                            {
+                                text: 'Сохранить проект',
+                                disabled: !isLoaded,
+                                action: handleSaveProject,
+                            },
+                        ],
+                        [
+                            {
+                                text: 'Закрыть проект',
+                                disabled: !isLoaded,
+                                action: handleCloseProject
+                            },
+                            {
+                                text: 'Закрыть окно',
+                                action: () => {
+                                    window.electron.closeWindow();
+                                }
                             }
-                        }
-                    ]}
-                />
-
-                <DropdownMenu
-                    switcher={
-                        <Button view="flat" size="l">
-                            Проект
-                            {isModified && (
-                                <span
-                                    style={{
-                                        marginLeft: '6px',
-                                        color: 'var(--g-color-text-warning)',
-                                        fontSize: '10px',
-                                        fontWeight: 'bold',
-                                    }}
-                                >
-                                    •
-                                </span>
-                            )}
-                        </Button>
-                    }
-                    items={[
-                        {
-                            text: 'Создать проект',
-                            action: () => {
-                                setIsNewProjectModalOpen(true);
-                            }
-                        },
-                        {
-                            text: 'Открыть проект',
-                            action: handleOpenProject
-                        },
-                        {
-                            text: 'Сохранить проект',
-                            disabled: !isLoaded,
-                            action: handleSaveProject,
-                        },
-                        {
-                            text: 'Закрыть проект',
-                            disabled: !isLoaded,
-                            action: handleCloseProject
-                        }
+                        ],
                     ]}
                 />
 
