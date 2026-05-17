@@ -1,28 +1,66 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Toc, type TocItem } from '@gravity-ui/uikit';
-
-const tocItems: TocItem[] = [
-    {
-        value: 'schema',
-        content: 'Схема проекта',
-    },
-    {
-        value: 'modules',
-        content: 'Модули проекта',
-        items: [
-            { value: 'module-kafka', content: 'Модуль обработки в Kafka' },
-            { value: 'module-postgresql', content: 'Модуль обработки НЕВА 03-Ф (Postgresql)' },
-            { value: 'module-prometheus', content: 'Модуль обработки в Prometheus' },
-        ],
-    },
-    {
-        value: 'config',
-        content: 'Конфигурация проекта',
-    },
-];
+import {useProject} from "../../context/ProjectContext.tsx";
 
 function ProjectEditor() {
+    const { state } = useProject();
+    const { project, isLoaded } = state;
+    const [tocItems, setTocItems] = useState<TocItem[]>([]);
     const [activeValue, setActiveValue] = useState<string>('schema');
+
+    useEffect(() => {
+        if (!isLoaded || !project) {
+            setTocItems([
+                {
+                    value: 'schema',
+                    content: 'Схема проекта',
+                },
+                {
+                    value: 'modules',
+                    content: 'Модули проекта',
+                    items: [],
+                },
+                {
+                    value: 'config',
+                    content: 'Конфигурация проекта',
+                },
+            ]);
+            setActiveValue('schema');
+            return;
+        }
+
+        const moduleItems: TocItem[] = project.modules.map((module) => ({
+            value: `module-${module.name}`,
+            content: module.name,
+        }));
+
+        const items: TocItem[] = [
+            {
+                value: 'schema',
+                content: 'Схема проекта',
+            },
+            {
+                value: 'modules',
+                content: 'Модули проекта',
+                items: moduleItems.length > 0 ? moduleItems : undefined,
+            },
+            {
+                value: 'config',
+                content: 'Конфигурация проекта',
+            },
+        ];
+
+        setTocItems(items);
+
+        const isValidActive = items.some(item =>
+            item.value === activeValue ||
+            item.items?.some(sub => sub.value === activeValue)
+        );
+
+        if (!isValidActive) {
+            setActiveValue('schema');
+        }
+    }, [project, isLoaded, activeValue]);
 
     return (
         <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
