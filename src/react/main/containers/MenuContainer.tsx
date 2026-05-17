@@ -2,10 +2,13 @@ import { Button, DropdownMenu } from '@gravity-ui/uikit';
 import { useState } from 'react';
 import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
 import {useProject} from "../../context/ProjectContext.tsx";
+import {useWindow} from "../../context/WindowContext.tsx";
 
 function MenuContainer() {
     const { loadProject, saveProject, clearProject, state } = useProject();
+    const { state: windowState } = useWindow();
     const { isLoaded, isModified, project } = state;
+    const { windowId } = windowState;
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
     const handleOpenProject = async () => {
@@ -39,15 +42,25 @@ function MenuContainer() {
         }
     };
 
-    const handleNewWindow = () => {
-        window.electron.createWindow();
+    const handleNewWindow = async () => {
+        await window.electron.createWindow();
     };
 
     const handleCloseProject = () => {
-        const confirm = window.confirm('Вы уверены, что хотите закрыть проект? Все несохранённые изменения будут потеряны.');
-        if (confirm) {
-            clearProject();
+        if (isModified) {
+            const confirm = window.confirm('Проект не сохранён. Закрыть проект?');
+            if (!confirm) return;
         }
+        clearProject();
+    };
+
+    const handleCloseWindow = async () => {
+        if (!windowId) return;
+        if (isModified) {
+            const confirm = window.confirm('Проект не сохранён. Закрыть окно?');
+            if (!confirm) return;
+        }
+        window.electron.closeWindow(windowId);
     };
 
     return (
@@ -91,9 +104,7 @@ function MenuContainer() {
                             },
                             {
                                 text: 'Закрыть окно',
-                                action: () => {
-                                    window.electron.closeWindow();
-                                }
+                                action: handleCloseWindow
                             }
                         ],
                     ]}

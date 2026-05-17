@@ -1,14 +1,14 @@
 const electron = require('electron');
 
 electron.contextBridge.exposeInMainWorld('electron', {
-    closeWindow: () => {
-        ipcRendererSend('closeWindow');
+    closeWindow: (windowId: string) => {
+        electron.ipcRenderer.send('closeWindow', windowId);
     },
-    minimizeWindow: () => {
-        ipcRendererSend('minimizeWindow');
+    minimizeWindow: (windowId: string) => {
+        electron.ipcRenderer.send('minimizeWindow', windowId);
     },
-    maximizeWindow: () => {
-        ipcRendererSend('maximizeWindow');
+    maximizeWindow: (windowId: string) => {
+        electron.ipcRenderer.send('maximizeWindow', windowId);
     },
     openProjectDialog: () => {
         return ipcRendererInvoke('openProjectDialog');
@@ -23,6 +23,12 @@ electron.contextBridge.exposeInMainWorld('electron', {
     },
     saveProject: (project: Project) => electron.ipcRenderer.invoke('saveProject', project),
     createWindow: () => electron.ipcRenderer.invoke('createWindow'),
+    on: (channel: string, callback: (event: any, ...args: any[]) => void) => {
+        electron.ipcRenderer.on(channel, callback);
+    },
+    off: (channel: string, callback: (event: any, ...args: any[]) => void) => {
+        electron.ipcRenderer.off(channel, callback);
+    },
 });
 
 export function ipcRendererSend<Key extends keyof ChannelPayloadMapping>(

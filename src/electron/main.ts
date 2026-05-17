@@ -1,30 +1,25 @@
-import {app, BrowserWindow, dialog, ipcMain} from "electron";
-import {createWindow} from "./window.js";
-import {getPreloadPath} from "./utils/preload.js";
-import {ipcMainHandle, ipcMainOn} from "./ipc/main.js";
+import {app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent} from "electron";
 import {createProject, loadProject, saveProject} from "./utils/project.js";
-
-let mainWindow: BrowserWindow | null = null;
+import {createWindow, getWindow, setupWindowHandlers} from "./window/manager.js";
 
 app.on("ready", () => {
-    mainWindow = createWindow("http://localhost:5123", {
-        fullscreen: true,
-        show: false,
-        webPreferences: {
-            preload: getPreloadPath()
-        }
-    }) as BrowserWindow;
+    createWindow();
+    setupWindowHandlers();
 
-    ipcMainOn("closeWindow", () => mainWindow?.close());
-    ipcMainOn("minimizeWindow", () => mainWindow?.minimize());
-    ipcMainOn("maximizeWindow", () => mainWindow?.maximize());
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
 
-    ipcMainHandle("openProjectDialog", async () => {
-        const result = await dialog.showOpenDialog(mainWindow!, {
+    app.on('window-all-closed', () => {
+        if (process.platform !== 'darwin') app.quit();
+    });
+
+    ipcMain.handle("openProjectDialog", async (_: IpcMainInvokeEvent, parentWindowId: string) => {
+        const result = await dialog.showOpenDialog(getWindow(parentWindowId)!, {
             properties: ['openDirectory'],
             title: 'Открыть проект'
         });
-        
+
         if (!result.canceled && result.filePaths.length > 0) {
             return { path: result.filePaths[0] };
         }
@@ -44,13 +39,7 @@ app.on("ready", () => {
     });
 
     ipcMain.handle('saveProject', saveProject);
-    ipcMain.handle('window:create', () => {
-        createWindow("http://localhost:5123", {
-            fullscreen: true,
-            show: false,
-            webPreferences: {
-                preload: getPreloadPath()
-            }
-        });
+    ipcMain.handle('createWindow', () => {
+        createWindow();
     });
 });
