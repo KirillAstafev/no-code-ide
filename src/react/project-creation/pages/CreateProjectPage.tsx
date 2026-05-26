@@ -85,9 +85,6 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
             display: 'flex',
             gap: '8px',
         },
-        springVersionWrapper: {
-            marginBottom: '16px',
-        },
         tabPanel: {
             marginTop: '20px',
         },
