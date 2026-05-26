@@ -20,6 +20,8 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
         location: '~/MSCProjects',
         schema: {},
         modules: [],
+        sources: [],
+        destinations: [],
         dependencies: [],
     });
 
