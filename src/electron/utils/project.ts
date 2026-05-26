@@ -164,10 +164,15 @@ export const loadProject = async (
             description: ''
         }));
 
+        const sources: DataSource[] = projectConfig.sources || [];
+        const destinations: DataDestination[] = projectConfig.destinations || [];
+
         const project: Project = {
             name: projectConfig.name,
             location: projectPath,
             modules,
+            sources,
+            destinations,
             dependencies,
             schema
         };
@@ -189,7 +194,6 @@ export const saveProject = async (
     try {
         const projectDir = project.location;
 
-        // Обновляем project.json
         await fs.writeFile(
             path.join(projectDir, 'project.json'),
             JSON.stringify(
@@ -202,7 +206,9 @@ export const saveProject = async (
                         code: d.dependencyCode,
                         category: d.category
                     })),
-                    modules: project.modules.map(m => m.name)
+                    modules: project.modules.map(m => m.name),
+                    sources: project.sources,
+                    destinations: project.destinations
                 },
                 null,
                 2
@@ -210,14 +216,12 @@ export const saveProject = async (
             'utf-8'
         );
 
-        // Пересохраняем схему
         await fs.writeFile(
             path.join(projectDir, 'schema.json'),
             JSON.stringify(project.schema, null, 2),
             'utf-8'
         );
 
-        // Пересохраняем модули
         const modulesDir = path.join(projectDir, 'modules');
         for (const module of project.modules) {
             const moduleDir = path.join(modulesDir, module.name);

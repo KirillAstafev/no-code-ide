@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { ChevronDown } from '@gravity-ui/icons';
-import { Icon, Text } from '@gravity-ui/uikit';
+import {useState} from 'react';
+import {ChevronDown} from '@gravity-ui/icons';
+import {Icon, Text} from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
 
 interface PanelSection {
@@ -13,11 +13,11 @@ interface AccordionItemProps {
     children: React.ReactNode;
 }
 
-function AccordionItem({ title, children }: AccordionItemProps) {
+function AccordionItem({title, children}: AccordionItemProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div style={{ borderBottom: '1px solid var(--g-color-line-generic)' }}>
+        <div style={{borderBottom: '1px solid var(--g-color-line-generic)'}}>
             <div
                 onClick={() => setIsExpanded(!isExpanded)}
                 style={{
@@ -40,7 +40,7 @@ function AccordionItem({ title, children }: AccordionItemProps) {
                 />
             </div>
             {isExpanded && (
-                <div style={{ padding: '8px 16px 16px' }}>
+                <div style={{padding: '8px 16px 16px'}}>
                     {children}
                 </div>
             )}
@@ -49,22 +49,16 @@ function AccordionItem({ title, children }: AccordionItemProps) {
 }
 
 function ElementPanel() {
-    const { state } = useProject();
-    const { project, isLoaded } = state;
+    const {state, updateProject} = useProject();
+    const {project, isLoaded} = state;
 
     const availableDestinations = isLoaded && project?.dependencies
-        ? project.dependencies
-              .map(dep => dep.name)
-              .filter(Boolean) as string[]
+        ? project.dependencies.map(dep => dep.name)
         : [];
 
     const staticSections: Omit<PanelSection, 'items'>[] = [
-        {
-            title: 'Общие',
-        },
-        {
-            title: 'Источники данных',
-        },
+        {title: 'Общие'},
+        {title: 'Источники данных'},
     ];
 
     const sections: PanelSection[] = staticSections.map(section => {
@@ -94,17 +88,56 @@ function ElementPanel() {
             : ['Нет доступных приёмников'],
     });
 
+    const handleDestinationDoubleClick = (name: string) => {
+        if (!project) return;
+
+        let finalName = name;
+        let counter = 1;
+        const baseName = name;
+        while (project.destinations?.some(d => d.name === finalName)) {
+            finalName = `${baseName} ${counter}`;
+            counter++;
+        }
+
+        const newDestination = {
+            name: finalName,
+            connectionSettings: new Map<string, string>([
+                ['host', 'localhost'],
+                ['port', 'default'],
+                ['database', ''],
+            ]),
+        };
+
+        const x = -100 + Math.random() * 200;
+        const y = -100 + Math.random() * 200;
+
+        const newNode = {
+            id: `destination-${Date.now()}`,
+            type: 'destination' as const,
+            label: newDestination.name,
+            caption: name,
+            x,
+            y,
+            data: newDestination,
+        };
+
+        updateProject({
+            destinations: [...(project.destinations || []), newDestination],
+            schema: {
+                ...project.schema,
+                nodes: [...(project.schema.nodes || []), newNode],
+            },
+        });
+    };
+
     return (
-        <div style={{ flex: 2, overflow: 'auto', background: 'var(--g-color-base-background)' }}>
+        <div style={{flex: 2, overflow: 'auto', background: 'var(--g-color-base-background)'}}>
             {sections.map(section => (
                 <AccordionItem key={section.title} title={section.title}>
                     {section.items.map(item => (
                         <div
                             key={item}
-                            draggable
-                            onDragStart={(e) => {
-                                e.dataTransfer.setData('text/plain', item);
-                            }}
+                            onDoubleClick={() => handleDestinationDoubleClick(item)}
                             style={{
                                 width: '100%',
                                 padding: '10px',
@@ -115,9 +148,6 @@ function ElementPanel() {
                                 border: '1px solid var(--g-color-line-generic)',
                                 boxSizing: 'border-box',
                                 transition: 'all 0.2s',
-                            }}
-                            onMouseDown={(e) => {
-                                e.preventDefault();
                             }}
                         >
                             <Text variant="body-2">{item}</Text>

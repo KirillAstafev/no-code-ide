@@ -33,6 +33,8 @@ interface Project {
     name: string;
     location: string;
     modules: Module[];
+    sources: DataSource[];
+    destinations: DataDestination[];
     dependencies: ExternalDependency[];
     schema: Schema;
 }
