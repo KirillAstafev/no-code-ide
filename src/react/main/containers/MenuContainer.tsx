@@ -7,7 +7,7 @@ import {useWindow} from "../../context/WindowContext.tsx";
 function MenuContainer() {
     const { loadProject, saveProject, clearProject, state } = useProject();
     const { state: windowState } = useWindow();
-    const { isLoaded, isModified, project } = state;
+    const { isLoaded, isModified } = state;
     const { windowId } = windowState;
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
@@ -159,25 +159,22 @@ function MenuContainer() {
                 />
             </div>
 
+            {isLoaded && (
+                <div
+                    style={{
+                        fontSize: '14px',
+                        color: isModified ? 'var(--g-color-text-warning)' : 'var(--g-color-text-secondary)',
+                    }}
+                >
+                    {isModified ? '• Не сохранено' : 'Сохранено'}
+                </div>
+            )}
+
             <CreateProjectPage
                 open={isNewProjectModalOpen}
                 onClose={() => setIsNewProjectModalOpen(false)}
                 onCreate={handleCreateProject}
             />
-
-            {isLoaded && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        fontSize: '12px',
-                        color: isModified ? 'var(--g-color-text-warning)' : 'var(--g-color-text-secondary)',
-                    }}
-                >
-                    {project?.name} {isModified ? '• Не сохранено' : '✓ Сохранено'}
-                </div>
-            )}
         </>
     );
 }
