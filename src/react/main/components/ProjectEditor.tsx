@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Toc, type TocItem } from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
+import {ProjectConfigPage} from "../../project-config/pages/ProjectConfigPage.tsx";
 
 function ProjectEditor() {
     const { state } = useProject();
     const { project, isLoaded } = state;
     const [tocItems, setTocItems] = useState<TocItem[]>([]);
     const [activeValue, setActiveValue] = useState<string>('schema');
+    const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
     useEffect(() => {
         if (!isLoaded || !project) {
@@ -66,7 +68,17 @@ function ProjectEditor() {
             <Toc
                 items={tocItems}
                 value={activeValue}
-                onUpdate={setActiveValue}
+                onUpdate={(value) => {
+                    if (isLoaded && value === 'config') {
+                        setIsConfigModalOpen(true);
+                    } else {
+                        setActiveValue(value);
+                    }
+                }}
+            />
+            <ProjectConfigPage
+                open={isConfigModalOpen}
+                onClose={() => setIsConfigModalOpen(false)}
             />
         </div>
     );
