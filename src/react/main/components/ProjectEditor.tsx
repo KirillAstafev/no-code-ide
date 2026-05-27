@@ -25,7 +25,6 @@ function ProjectEditor() {
                     content: 'Конфигурация проекта',
                 },
             ]);
-            setActiveValue('schema');
             return;
         }
 
