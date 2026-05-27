@@ -66,12 +66,16 @@ function ElementPanel() {
             case 'Общие':
                 return {
                     title: section.title,
-                    items: ['Модуль обработки данных'],
+                    items: isLoaded
+                        ? ['Модуль обработки данных']
+                        : ['Нет доступных элементов'],
                 };
             case 'Источники данных':
                 return {
                     title: section.title,
-                    items: ['ККТ НЕВА 03-Ф'],
+                    items: isLoaded
+                        ? ['ККТ НЕВА 03-Ф']
+                        : ['Нет доступных элементов'],
                 };
             default:
                 return {
