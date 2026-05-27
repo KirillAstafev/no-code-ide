@@ -80,7 +80,7 @@ export const AddModulePage: React.FC<AddModulePageProps> = ({
                         value={name}
                         onUpdate={handleChange}
                         hasClear
-                        style={{ width: '100%', marginBottom: '12px' }}
+                        style={{ width: '100%', marginTop: '12px', marginBottom: '12px' }}
                         autoFocus
                         size="l"
                     />
