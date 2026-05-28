@@ -26,6 +26,7 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
     }, [project]);
 
     const [selectedDependencies, setSelectedDependencies] = useState<ExternalDependency[]>([]);
+    const [dependenciesToDelete, setDependenciesToDelete] = useState<ExternalDependency[]>([]);
 
     useEffect(() => {
         if (project) {
@@ -59,11 +60,24 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
         }
 
         if (project) {
+            let updatedDependencies = [...selectedDependencies];
+            let updatedDestinations = [...(project.destinations || [])];
+            
+            dependenciesToDelete.forEach(dep => {
+                updatedDependencies = updatedDependencies.filter(d => d.dependencyCode !== dep.dependencyCode);
+                updatedDestinations = updatedDestinations.filter(dest => {
+                    return !Object.keys(dest.connectionSettings).includes(dep.dependencyCode);
+                });
+            });
+
             updateProject({
                 name: name.trim(),
                 location: location.trim(),
-                dependencies: selectedDependencies,
+                dependencies: updatedDependencies,
+                destinations: updatedDestinations,
             });
+            
+            setDependenciesToDelete([]);
         }
 
         onClose();
@@ -171,7 +185,23 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
                                     onUpdate={() => {
                                         const isSelected = selectedDependencies.some(d => d.dependencyCode === dep.dependencyCode);
                                         if (isSelected) {
-                                            setSelectedDependencies(selectedDependencies.filter(d => d.dependencyCode !== dep.dependencyCode));
+                                            const dependentDestinations = project.destinations?.filter(dest => {
+                                                return dest.dependency?.dependencyCode === dep.dependencyCode;
+                                            }) || [];
+
+                                            if (dependentDestinations.length > 0) {
+                                                const confirmRemove = window.confirm(
+                                                    `Зависимость "${dep.name}" используется приёмниками данных: ` +
+                                                    `${dependentDestinations.map(d => d.name).join(', ')}. ` +
+                                                    `При удалении зависимости эти приёмники будут удалены. Продолжить?`
+                                                );
+                                                if (confirmRemove) {
+                                                    setDependenciesToDelete([...dependenciesToDelete, dep]);
+                                                    setSelectedDependencies(selectedDependencies.filter(d => d.dependencyCode !== dep.dependencyCode));
+                                                }
+                                            } else {
+                                                setSelectedDependencies(selectedDependencies.filter(d => d.dependencyCode !== dep.dependencyCode));
+                                            }
                                         } else {
                                             setSelectedDependencies([...selectedDependencies, dep]);
                                         }

@@ -55,6 +55,7 @@ interface DataSource {
 interface DataDestination {
     name: string;
     connectionSettings: Map<string, string>;
+    dependency: ExternalDependency;
 }
 
 interface ExternalDependency {
