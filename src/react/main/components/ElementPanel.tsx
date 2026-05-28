@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {ChevronDown} from '@gravity-ui/icons';
 import {Icon, Text} from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
+import {AddModulePage} from "../../module-creation/pages/AddModulePage.tsx";
 
 interface PanelSection {
     title: string;
@@ -51,6 +52,7 @@ function AccordionItem({title, children}: AccordionItemProps) {
 function ElementPanel() {
     const {state, updateProject} = useProject();
     const {project, isLoaded} = state;
+    const [isAddModuleModalOpen, setIsAddModuleModalOpen] = useState(false);
 
     const availableDestinations = isLoaded && project?.dependencies
         ? project.dependencies.map(dep => dep.name)
@@ -134,6 +136,49 @@ function ElementPanel() {
         });
     };
 
+    const handleAddModule = (moduleName: string) => {
+        if (!project) return;
+
+        const baseX = 600;
+        const baseY = 200;
+        const spacing = 80;
+        const existingModuleCount = project.modules.length;
+
+        const x = baseX + (existingModuleCount % 3) * spacing;
+        const y = baseY + Math.floor(existingModuleCount / 3) * spacing;
+
+        const newModule = {
+            name: moduleName,
+            location: `${project.location}/modules/${moduleName}`,
+            sources: [],
+            destinations: [],
+        };
+
+        const newSchemaNode = {
+            id: `module-${moduleName}`,
+            type: 'module' as const,
+            label: moduleName,
+            caption: 'Модуль',
+            x,
+            y,
+            data: newModule,
+        };
+
+        updateProject({
+            modules: [...project.modules, newModule],
+            schema: {
+                ...project.schema,
+                nodes: [...project.schema.nodes ?? [], newSchemaNode],
+            },
+        });
+    };
+
+    const handleCommonDoubleClick = () => {
+        if (isLoaded) {
+            setIsAddModuleModalOpen(true);
+        }
+    };
+
     return (
         <div style={{flex: 2, overflow: 'auto', background: 'var(--g-color-base-background)'}}>
             {sections.map(section => (
@@ -141,7 +186,13 @@ function ElementPanel() {
                     {section.items.map(item => (
                         <div
                             key={item}
-                            onDoubleClick={() => handleDestinationDoubleClick(item)}
+                            onDoubleClick={() => {
+                                if (section.title === 'Общие') {
+                                    handleCommonDoubleClick();
+                                } else {
+                                    handleDestinationDoubleClick(item);
+                                }
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '10px',
@@ -159,6 +210,12 @@ function ElementPanel() {
                     ))}
                 </AccordionItem>
             ))}
+            <AddModulePage
+                open={isAddModuleModalOpen}
+                onClose={() => setIsAddModuleModalOpen(false)}
+                onAdd={handleAddModule}
+                existingModuleNames={project?.modules.map(m => m.name) || []}
+            />
         </div>
     );
 }

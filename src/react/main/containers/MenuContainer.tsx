@@ -3,54 +3,14 @@ import {useState} from 'react';
 import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useWindow} from "../../context/WindowContext.tsx";
-import {AddModulePage} from "../../module-creation/pages/AddModulePage.tsx";
 
 function MenuContainer() {
-    const {loadProject, saveProject, updateProject, clearProject, state} = useProject();
+    const {loadProject, saveProject, clearProject, state} = useProject();
     const {state: windowState} = useWindow();
-    const {isLoaded, isModified, project} = state;
+    const {isLoaded, isModified} = state;
     const {windowId} = windowState;
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
-    const [isAddModuleModalOpen, setIsAddModuleModalOpen] = useState(false);
 
-    const existingModuleNames = project?.modules.map(m => m.name) || [];
-
-    const handleAddModule = (moduleName: string) => {
-        if (!project) return;
-
-        const baseX = 600;
-        const baseY = 200;
-        const spacing = 80;
-        const existingModuleCount = project.modules.length;
-
-        const x = baseX + (existingModuleCount % 3) * spacing;
-        const y = baseY + Math.floor(existingModuleCount / 3) * spacing;
-
-        const newModule = {
-            name: moduleName,
-            location: `${project.location}/modules/${moduleName}`,
-            sources: [],
-            destinations: [],
-        };
-
-        const newSchemaNode = {
-            id: `module-${moduleName}`,
-            type: 'module' as const,
-            label: moduleName,
-            caption: 'Модуль',
-            x,
-            y,
-            data: newModule,
-        };
-
-        updateProject({
-            modules: [...project.modules, newModule],
-            schema: {
-                ...project.schema,
-                nodes: [...project.schema.nodes ?? [], newSchemaNode],
-            },
-        });
-    };
     const handleOpenProject = async () => {
         const result = await window.electron.openProjectDialog();
         if (result.path) {
@@ -153,37 +113,6 @@ function MenuContainer() {
                 <DropdownMenu
                     switcher={
                         <Button view="flat" size="l">
-                            Редактировать
-                        </Button>
-                    }
-                    items={[
-                        {
-                            text: 'Добавить модуль',
-                            disabled: !isLoaded,
-                            action: () => {
-                                setIsAddModuleModalOpen(true);
-                            }
-                        },
-                        {
-                            text: 'Добавить ККТ',
-                            disabled: !isLoaded,
-                            action: () => {
-                                console.log('Добавить ККТ');
-                            }
-                        },
-                        {
-                            text: 'Добавить приёмник данных',
-                            disabled: !isLoaded,
-                            action: () => {
-                                console.log('Добавить приёмник данных');
-                            }
-                        }
-                    ]}
-                />
-
-                <DropdownMenu
-                    switcher={
-                        <Button view="flat" size="l">
                             Сборка
                         </Button>
                     }
@@ -214,13 +143,6 @@ function MenuContainer() {
                 open={isNewProjectModalOpen}
                 onClose={() => setIsNewProjectModalOpen(false)}
                 onCreate={handleCreateProject}
-            />
-
-            <AddModulePage
-                open={isAddModuleModalOpen}
-                onClose={() => setIsAddModuleModalOpen(false)}
-                onAdd={handleAddModule}
-                existingModuleNames={existingModuleNames}
             />
         </>
     );
