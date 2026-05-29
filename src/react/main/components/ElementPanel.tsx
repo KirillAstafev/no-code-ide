@@ -3,6 +3,7 @@ import {ChevronDown} from '@gravity-ui/icons';
 import {Icon, Text} from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {AddModulePage} from "../../module-creation/pages/AddModulePage.tsx";
+import {AddDestinationPage} from "../../destination-creation/pages/AddDestinationPage.tsx";
 
 interface PanelSection {
     title: string;
@@ -53,6 +54,7 @@ function ElementPanel() {
     const {state, updateProject} = useProject();
     const {project, isLoaded} = state;
     const [isAddModuleModalOpen, setIsAddModuleModalOpen] = useState(false);
+    const [isAddDestinationModalOpen, setIsAddDestinationModalOpen] = useState(false);
 
     const availableDestinations = isLoaded && project?.dependencies
         ? project.dependencies.map(dep => dep.name)
@@ -94,7 +96,13 @@ function ElementPanel() {
             : ['Нет доступных приёмников'],
     });
 
-    const handleDestinationDoubleClick = (name: string) => {
+    const handleDestinationDoubleClick = () => {
+        if (isLoaded) {
+            setIsAddDestinationModalOpen(true);
+        }
+    };
+
+    const handleAddDestination = (name: string, dependency: ExternalDependency) => {
         if (!project) return;
 
         let finalName = name;
@@ -105,13 +113,14 @@ function ElementPanel() {
             counter++;
         }
 
-        const newDestination = {
+        const newDestination: DataDestination = {
             name: finalName,
             connectionSettings: new Map<string, string>([
                 ['host', 'localhost'],
                 ['port', 'default'],
                 ['database', ''],
             ]),
+            dependency: dependency,
         };
 
         const x = -100 + Math.random() * 200;
@@ -121,7 +130,7 @@ function ElementPanel() {
             id: `destination-${Date.now()}`,
             type: 'destination' as const,
             label: newDestination.name,
-            caption: name,
+            caption: dependency.name,
             x,
             y,
             data: newDestination,
@@ -190,7 +199,7 @@ function ElementPanel() {
                                 if (section.title === 'Общие') {
                                     handleCommonDoubleClick();
                                 } else {
-                                    handleDestinationDoubleClick(item);
+                                    handleDestinationDoubleClick();
                                 }
                             }}
                             style={{
@@ -215,6 +224,11 @@ function ElementPanel() {
                 onClose={() => setIsAddModuleModalOpen(false)}
                 onAdd={handleAddModule}
                 existingModuleNames={project?.modules.map(m => m.name) || []}
+            />
+            <AddDestinationPage
+                open={isAddDestinationModalOpen}
+                onClose={() => setIsAddDestinationModalOpen(false)}
+                onAdd={handleAddDestination}
             />
         </div>
     );
