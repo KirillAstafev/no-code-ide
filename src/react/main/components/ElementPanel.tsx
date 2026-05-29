@@ -4,6 +4,7 @@ import {Icon, Text} from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {AddModulePage} from "../../module-creation/pages/AddModulePage.tsx";
 import {AddDestinationPage} from "../../destination-creation/pages/AddDestinationPage.tsx";
+import {AddSourcePage} from "../../source-creation/pages/AddSourcePage.tsx";
 
 interface PanelSection {
     title: string;
@@ -55,6 +56,7 @@ function ElementPanel() {
     const {project, isLoaded} = state;
     const [isAddModuleModalOpen, setIsAddModuleModalOpen] = useState(false);
     const [isAddDestinationModalOpen, setIsAddDestinationModalOpen] = useState(false);
+    const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(false);
 
     const availableDestinations = isLoaded && project?.dependencies
         ? project.dependencies.map(dep => dep.name)
@@ -145,6 +147,51 @@ function ElementPanel() {
         });
     };
 
+    const handleAddSource = (source: DataSource) => {
+        if (!project) return;
+
+        let finalName = source.name;
+        let counter = 1;
+        const baseName = source.name;
+        while (project.sources?.some(s => s.name === finalName)) {
+            finalName = `${baseName} ${counter}`;
+            counter++;
+        }
+
+        const newSource: DataSource = {
+            name: finalName,
+            ipAddress: source.ipAddress,
+            tcpPort: source.tcpPort
+        };
+
+        const x = -100 + Math.random() * 200;
+        const y = -100 + Math.random() * 200;
+
+        const newNode = {
+            id: `source-${Date.now()}`,
+            type: 'source' as const,
+            label: newSource.name,
+            caption: `${newSource.ipAddress}:${newSource.tcpPort}`,
+            x,
+            y,
+            data: newSource,
+        };
+
+        updateProject({
+            sources: [...(project.sources || []), newSource],
+            schema: {
+                ...project.schema,
+                nodes: [...(project.schema.nodes || []), newNode],
+            },
+        });
+    };
+
+    const handleSourceDoubleClick = () => {
+        if (isLoaded) {
+            setIsAddSourceModalOpen(true);
+        }
+    };
+
     const handleAddModule = (moduleName: string) => {
         if (!project) return;
 
@@ -198,6 +245,8 @@ function ElementPanel() {
                             onDoubleClick={() => {
                                 if (section.title === 'Общие') {
                                     handleCommonDoubleClick();
+                                } else if (section.title === 'Источники данных') {
+                                    handleSourceDoubleClick();
                                 } else {
                                     handleDestinationDoubleClick();
                                 }
@@ -229,6 +278,11 @@ function ElementPanel() {
                 open={isAddDestinationModalOpen}
                 onClose={() => setIsAddDestinationModalOpen(false)}
                 onAdd={handleAddDestination}
+            />
+            <AddSourcePage
+                open={isAddSourceModalOpen}
+                onClose={() => setIsAddSourceModalOpen(false)}
+                onAdd={handleAddSource}
             />
         </div>
     );
