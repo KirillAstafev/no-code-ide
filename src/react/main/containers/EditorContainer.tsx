@@ -1,12 +1,16 @@
 import Editor from '../components/Editor';
 import PropertiesContainer from './PropertiesContainer';
+import {SelectionProvider} from "../../context/SelectionContext.tsx";
+
 
 function EditorContainer() {
     return (
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            <Editor />
-            <PropertiesContainer />
-        </div>
+        <SelectionProvider>
+            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                <Editor />
+                <PropertiesContainer />
+            </div>
+        </SelectionProvider>
     );
 }
 
