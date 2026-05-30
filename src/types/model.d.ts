@@ -48,7 +48,8 @@ interface Module {
 
 interface DataSource {
     name: string;
-    url: string;
+    ipAddress: string;
+    tcpPort: number;
 }
 
 interface DataDestination {
