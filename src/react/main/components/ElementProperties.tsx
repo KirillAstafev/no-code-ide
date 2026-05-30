@@ -1,5 +1,8 @@
 import { Text } from '@gravity-ui/uikit';
 import {useSelection} from "../../context/SelectionContext.tsx";
+import { SourceProperties } from "./SourceProperties";
+import { DestinationProperties } from "./DestinationProperties";
+import { ModuleProperties } from "./ModuleProperties";
 
 
 interface ElementPropertiesProps {
@@ -36,28 +39,16 @@ function ElementProperties({ isCollapsed }: ElementPropertiesProps) {
             <div style={{ padding: '16px', flex: 1, overflow: 'auto' }}>
                 {selectedElement ? (
                     <div>
-                        <div style={{ marginBottom: '12px' }}>
-                            <Text variant="subheader-2">{selectedElement.label}</Text>
-                            <Text variant="caption-1" color="secondary">{selectedElement.type}</Text>
-                        </div>
-                        <div style={{ marginBottom: '8px' }}>
-                            <Text variant="body-2" style={{ marginBottom: '4px' }}>ID</Text>
-                            <Text variant="caption-1">{selectedElement.id}</Text>
-                        </div>
-                        <div style={{ marginBottom: '8px' }}>
-                            <Text variant="body-2" style={{ marginBottom: '4px' }}>Тип</Text>
-                            <Text variant="caption-1">{selectedElement.type}</Text>
-                        </div>
-                        {selectedElement.data && (
-                            <div>
-                                <Text variant="subheader-2" style={{ marginTop: '16px', marginBottom: '8px' }}>Данные</Text>
-                                {Object.entries(selectedElement.data).map(([key, value]) => (
-                                    <div key={key} style={{ marginBottom: '8px' }}>
-                                        <Text variant="body-2" style={{ marginBottom: '4px' }}>{key}</Text>
-                                        <Text variant="caption-1">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</Text>
-                                    </div>
-                                ))}
-                            </div>
+                        {selectedElement.type === 'source' && selectedElement.data && (
+                            <SourceProperties data={selectedElement.data as DataSource} />
+                        )}
+
+                        {selectedElement.type === 'destination' && selectedElement.data && (
+                            <DestinationProperties data={selectedElement.data as DataDestination} />
+                        )}
+
+                        {selectedElement.type === 'module' && selectedElement.data && (
+                            <ModuleProperties data={selectedElement.data as Module} />
                         )}
                     </div>
                 ) : (
