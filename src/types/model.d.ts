@@ -48,13 +48,12 @@ interface Module {
 
 interface DataSource {
     name: string;
-    ipAddress: string;
-    tcpPort: number;
+    url: string;
 }
 
 interface DataDestination {
     name: string;
-    connectionSettings: Map<string, string>;
+    url: string;
     dependency: ExternalDependency;
 }
 

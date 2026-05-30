@@ -5,7 +5,7 @@ import {useProject} from "../../context/ProjectContext.tsx";
 interface AddDestinationPageProps {
     open: boolean;
     onClose: () => void;
-    onAdd: (name: string, dependency: ExternalDependency) => void;
+    onAdd: (name: string, dependency: ExternalDependency, url: string) => void;
 }
 
 export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
@@ -18,6 +18,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
 
     const [name, setName] = useState('');
     const [dependency, setDependency] = useState<ExternalDependency | null>(null);
+    const [url, setUrl] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     const availableDependencies = isLoaded ? project?.dependencies || [] : [];
@@ -54,6 +55,10 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
             return 'Выберите зависимость для приёмника';
         }
 
+        if (!url) {
+            return 'Введите URL подключения';
+        }
+
         return null;
     };
 
@@ -65,7 +70,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
         }
 
         if (dependency) {
-            onAdd(name.trim(), dependency);
+            onAdd(name.trim(), dependency, url);
         }
         setName('');
         setDependency(null);
@@ -88,6 +93,14 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
         } else {
             setDependency(null);
         }
+        if (error) {
+            const newError = validate();
+            setError(newError);
+        }
+    };
+
+    const handleUrlChange = (value: string) => {
+        setUrl(value);
         if (error) {
             const newError = validate();
             setError(newError);
@@ -129,6 +142,20 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                         />
                     </div>
 
+                    <div style={{ marginBottom: '12px' }}>
+                        <Text variant="body-2" style={{ marginBottom: '6px' }}>
+                            URL подключения
+                        </Text>
+                        <TextInput
+                            value={url}
+                            onUpdate={handleUrlChange}
+                            hasClear
+                            style={{ width: '100%', marginBottom: '12px' }}
+                            size="l"
+                            placeholder="http://localhost:5432"
+                        />
+                    </div>
+
                     {error && (
                         <Alert
                             theme="danger"
@@ -154,7 +181,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                         view="action"
                         size="m"
                         onClick={handleAdd}
-                        disabled={!!error || !name.trim() || !dependency}
+                        disabled={!!error || !name.trim() || !dependency || !url}
                     >
                         Добавить
                     </Button>

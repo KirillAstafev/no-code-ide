@@ -74,8 +74,7 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
 
         onAdd({
             name: name.trim(),
-            ipAddress,
-            tcpPort: parseInt(tcpPort, 10)
+            url: `http://${ipAddress}:${tcpPort}`
         });
         setName('');
         setIpAddress('');
