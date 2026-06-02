@@ -7,7 +7,7 @@ import {useWindow} from "../../context/WindowContext.tsx";
 function MenuContainer() {
     const {loadProject, saveProject, clearProject, state} = useProject();
     const {state: windowState} = useWindow();
-    const {isLoaded, isModified} = state;
+    const {isLoaded, isModified, project} = state;
     const {windowId} = windowState;
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
 
@@ -61,6 +61,22 @@ function MenuContainer() {
             if (!confirm) return;
         }
         window.electron.closeWindow(windowId);
+    };
+
+    const handleBuildProject = async () => {
+        if (!project) return;
+
+        try {
+            const result = await window.electron.buildProject(project);
+
+            if (result.success) {
+                alert(`Проект успешно собран! Шаблон Spring Boot приложения сгенерирован и распакован в папку ${result.path}`);
+            } else {
+                alert(`Ошибка сборки: ${result.error}`);
+            }
+        } catch (err) {
+            alert(`Ошибка сборки: ${(err as Error).message}`);
+        }
     };
 
     return (
@@ -120,9 +136,7 @@ function MenuContainer() {
                         {
                             text: 'Собрать проект',
                             disabled: !isLoaded,
-                            action: () => {
-                                console.log('Собрать проект');
-                            }
+                            action: handleBuildProject
                         }
                     ]}
                 />

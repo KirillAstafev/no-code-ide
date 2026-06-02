@@ -1,6 +1,7 @@
-import { IpcMainInvokeEvent } from 'electron';
+import {IpcMainInvokeEvent} from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
+import unzipper from 'unzipper';
 
 function generateSchemaFromProject(project: Project): Schema {
     const nodes: SchemaNode[] = [];
@@ -236,6 +237,61 @@ export const saveProject = async (
         return { success: true, path: projectDir };
     } catch (error) {
         console.error('Ошибка сохранения проекта:', error);
+        return { success: false, error: (error as Error).message };
+    }
+};
+
+export const buildProject = async (
+    event: IpcMainInvokeEvent,
+    project: Project
+): Promise<{ success: boolean; path?: string; error?: string }> => {
+    try {
+        const projectDir = project.location;
+        const generatedDir = path.join(projectDir, 'generated');
+
+        try {
+            await fs.rm(generatedDir, { recursive: true, force: true });
+        } catch (err) {
+            // Игнорируем ошибки при удалении несуществующей папки
+        }
+
+        await fs.mkdir(generatedDir, { recursive: true });
+
+        const dependencyCodes = project.dependencies.map(d => d.dependencyCode).filter(Boolean);
+        const dependenciesParam = dependencyCodes.length > 0 ? dependencyCodes.join(',') : 'web';
+
+        const initializrUrl = 'https://start.spring.io/starter.zip';
+        const params = new URLSearchParams({
+            type: 'gradle-project',
+            language: 'java',
+            bootVersion: '3.3.0',
+            baseDir: `${project.name}-generated`,
+            groupId: 'com.example',
+            artifactId: `${project.name}-generated`,
+            name: `${project.name} Generated`,
+            description: `Generated project for ${project.name}`,
+            packageName: `com.example.${project.name.replace(/\s+/g, '_')}`,
+            packaging: 'jar',
+            javaVersion: '21',
+            dependencies: dependenciesParam
+        });
+
+        const url = `${initializrUrl}?${params.toString()}`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Ошибка загрузки шаблона Spring Boot: ${response.statusText}`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        const zip = await unzipper.Open.buffer(buffer);
+        await zip.extract({ path: generatedDir });
+
+        return { success: true, path: generatedDir };
+    } catch (error) {
+        console.error('Ошибка сборки проекта:', error);
         return { success: false, error: (error as Error).message };
     }
 };

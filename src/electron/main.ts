@@ -1,5 +1,5 @@
 import {app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent} from "electron";
-import {createProject, loadProject, saveProject} from "./utils/project.js";
+import {createProject, loadProject, saveProject, buildProject} from "./utils/project.js";
 import {createWindow, getWindow, setupWindowHandlers} from "./window/manager.js";
 
 app.on("ready", () => {
@@ -39,6 +39,7 @@ app.on("ready", () => {
     });
 
     ipcMain.handle('saveProject', saveProject);
+    ipcMain.handle('buildProject', buildProject);
     ipcMain.handle('createWindow', () => {
         createWindow();
     });
