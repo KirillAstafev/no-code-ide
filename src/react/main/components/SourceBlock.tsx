@@ -19,7 +19,9 @@ export const SourceBlock = ({ graph, block }: SourceBlockProps) => {
                 padding: '8px 12px',
                 width: '100%',
                 height: '100%',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                background: 'rgba(0, 0, 0, 0.8)',
+                borderRadius: 'var(--g-border-radius-m)',
             }}>
                 <Icon
                     data={SourceIcon}
