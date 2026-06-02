@@ -4,6 +4,9 @@ import {useCallback, useEffect} from 'react';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useSelection} from "../../context/SelectionContext.tsx";
 import type {SelectionEvent} from "@gravity-ui/graph/build/graphEvents";
+import {ModuleBlock} from "./ModuleBlock";
+import {SourceBlock} from "./SourceBlock";
+import {DestinationBlock} from "./DestinationBlock";
 
 function Editor() {
     const config = {};
@@ -26,8 +29,8 @@ function Editor() {
                 is: `block-${node.type}`,
                 x: node.x || 0,
                 y: node.y || 0,
-                width: 126,
-                height: 126,
+                width: 90,
+                height: 90,
                 name: node.label,
                 anchors: []
             };
@@ -68,7 +71,16 @@ function Editor() {
     }, [setEntities, project, isLoaded]);
 
     const renderBlockFn = (graph: Graph, block: TBlock) => {
-        return <GraphBlock graph={graph} block={block}>{block.name}</GraphBlock>;
+        switch (block.is) {
+            case 'block-module':
+                return <ModuleBlock graph={graph} block={block} />;
+            case 'block-source':
+                return <SourceBlock graph={graph} block={block} />;
+            case 'block-destination':
+                return <DestinationBlock graph={graph} block={block} />;
+            default:
+                return <GraphBlock graph={graph} block={block}>{block.name}</GraphBlock>;
+        }
     };
 
     const {selectElement} = useSelection();
