@@ -66,7 +66,7 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
             dependenciesToDelete.forEach(dep => {
                 updatedDependencies = updatedDependencies.filter(d => d.dependencyCode !== dep.dependencyCode);
                 updatedDestinations = updatedDestinations.filter(dest => {
-                    return !Object.keys(dest.connectionSettings).includes(dep.dependencyCode);
+                    return !Object.keys(dest.dependency).includes(dep.dependencyCode);
                 });
             });
 

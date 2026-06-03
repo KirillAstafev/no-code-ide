@@ -3,6 +3,7 @@ import {GraphCanvas, useGraph, GraphBlock} from '@gravity-ui/graph/react';
 import {useCallback, useEffect} from 'react';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useSelection} from "../../context/SelectionContext.tsx";
+// @ts-expect-error
 import type {SelectionEvent} from "@gravity-ui/graph/build/graphEvents";
 import {ModuleBlock} from "./ModuleBlock";
 import {SourceBlock} from "./SourceBlock";

@@ -117,11 +117,7 @@ function ElementPanel() {
 
         const newDestination: DataDestination = {
             name: finalName,
-            connectionSettings: new Map<string, string>([
-                ['host', 'localhost'],
-                ['port', 'default'],
-                ['database', ''],
-            ]),
+            url: "http://localhost:8080",
             dependency: dependency,
         };
 
