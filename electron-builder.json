@@ -1,0 +1,28 @@
+{
+  "appId": "com.nocodeide.app",
+  "productName": "No-Code IDE",
+  "directories": {
+    "output": "dist-electron-build"
+  },
+  "files": [
+    "dist-react/**/*",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "public/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": true,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  }
+}
