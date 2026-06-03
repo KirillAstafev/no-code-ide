@@ -261,26 +261,29 @@ export const buildProject = async (
         const dependenciesParam = dependencyCodes.length > 0 ? dependencyCodes.join(',') : 'web';
 
         const initializrUrl = 'https://start.spring.io/starter.zip';
-        const params = new URLSearchParams({
-            type: 'gradle-project',
-            language: 'java',
-            bootVersion: '3.3.0',
-            baseDir: `${project.name}-generated`,
-            groupId: 'com.example',
-            artifactId: `${project.name}-generated`,
-            name: `${project.name} Generated`,
-            description: `Generated project for ${project.name}`,
-            packageName: `com.example.${project.name.replace(/\s+/g, '_')}`,
-            packaging: 'jar',
-            javaVersion: '21',
-            dependencies: dependenciesParam
+        
+        const formData = new FormData();
+        formData.append('type', 'gradle-project');
+        formData.append('language', 'java');
+        formData.append('bootVersion', '3.5.0');
+        formData.append('baseDir', `${project.name}-generated`);
+        formData.append('groupId', 'com.example');
+        formData.append('artifactId', `${project.name}-generated`);
+        formData.append('name', `${project.name} Generated`);
+        formData.append('description', `Generated project for ${project.name}`);
+        formData.append('packageName', `com.example.${project.name.replace(/\s+/g, '_')}`);
+        formData.append('packaging', 'jar');
+        formData.append('javaVersion', '21');
+        formData.append('dependencies', dependenciesParam);
+
+        const response = await fetch(initializrUrl, {
+            method: 'POST',
+            body: formData
         });
 
-        const url = `${initializrUrl}?${params.toString()}`;
-
-        const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`Ошибка загрузки шаблона Spring Boot: ${response.statusText}`);
+            const errorText = await response.text();
+            throw new Error(`Ошибка загрузки шаблона Spring Boot: ${response.statusText}. Details: ${errorText}`);
         }
 
         const arrayBuffer = await response.arrayBuffer();
