@@ -8,12 +8,15 @@ import { ThemeProvider } from "@gravity-ui/uikit";
 import MainPage from './main/pages/MainPage.tsx'
 import {ProjectProvider} from "./context/ProjectContext.tsx";
 import {WindowProvider} from "./context/WindowContext.tsx";
+import {GitProvider} from "./context/GitContext.tsx";
 
 createRoot(document.getElementById('root')!).render(
   <ThemeProvider theme="dark">
       <WindowProvider>
           <ProjectProvider>
-              <MainPage />
+              <GitProvider>
+                  <MainPage />
+              </GitProvider>
           </ProjectProvider>
       </WindowProvider>
   </ThemeProvider>,

@@ -10,6 +10,13 @@ interface Window {
         buildProject: (Project) => Promise<{success: boolean, path?: string, error?: string}>;
         selectFolder: () => Promise<string | null>;
         createWindow: () => Promise<any>;
+        initGitRepository: (path: string) => Promise<void>;
+        addGitFiles: (path: string, files: string[]) => Promise<void>;
+        commitGit: (path: string, message: string) => Promise<void>;
+        pushGit: (path: string, remote: string, branch: string) => Promise<void>;
+        getGitStatus: (path: string) => Promise<{ modified: string[], added: string[], deleted: string[], untracked: string[] }>;
+        getGitLog: (path: string, limit: number) => Promise<{ hash: string, message: string, author: string, date: string }[]>;
+        isGitRepository: (path: string) => Promise<boolean>;
         on: (channel: string, callback: (event: any, ...args: any[]) => void) => void;
         off: (channel: string, callback: (event: any, ...args: any[]) => void) => void;
     }
