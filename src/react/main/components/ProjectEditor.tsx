@@ -23,6 +23,16 @@ function ProjectEditor() {
                     items: [],
                 },
                 {
+                    value: 'sources',
+                    content: 'Источники данных',
+                    items: [],
+                },
+                {
+                    value: 'destinations',
+                    content: 'Приёмники данных',
+                    items: [],
+                },
+                {
                     value: 'config',
                     content: 'Конфигурация проекта',
                 },
@@ -35,6 +45,16 @@ function ProjectEditor() {
             content: module.name,
         }));
 
+        const sourceItems: TocItem[] = project.sources.map((source) => ({
+            value: `source-${source.name}`,
+            content: source.name,
+        }));
+
+        const destinationItems: TocItem[] = project.destinations.map((destination) => ({
+            value: `destination-${destination.name}`,
+            content: destination.name,
+        }));
+
         const items: TocItem[] = [
             {
                 value: 'schema',
@@ -44,6 +64,16 @@ function ProjectEditor() {
                 value: 'modules',
                 content: 'Модули проекта',
                 items: moduleItems.length > 0 ? moduleItems : undefined,
+            },
+            {
+                value: 'sources',
+                content: 'Источники данных',
+                items: sourceItems.length > 0 ? sourceItems : undefined,
+            },
+            {
+                value: 'destinations',
+                content: 'Приёмники данных',
+                items: destinationItems.length > 0 ? destinationItems : undefined,
             },
             {
                 value: 'config',
