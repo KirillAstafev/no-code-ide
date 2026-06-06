@@ -3,6 +3,7 @@ import {useState} from 'react';
 import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useWindow} from "../../context/WindowContext.tsx";
+import {CloneGitProjectPage} from "../../git/components/CloneGitProjectPage.tsx";
 
 function MenuContainer() {
     const {loadProject, saveProject, clearProject, state} = useProject();
@@ -10,6 +11,7 @@ function MenuContainer() {
     const {isLoaded, isModified, project} = state;
     const {windowId} = windowState;
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+    const [isCloneGitModalOpen, setIsCloneGitModalOpen] = useState(false);
 
     const handleOpenProject = async () => {
         const result = await window.electron.openProjectDialog();
@@ -79,6 +81,23 @@ function MenuContainer() {
         }
     };
 
+    const handleCloneGitProject = async (url: string, path: string) => {
+        try {
+            await window.electron.cloneGitRepository(url, path);
+            const projectResult = await window.electron.loadProject(path);
+
+            if (projectResult.success && projectResult.project) {
+                loadProject(projectResult.project);
+                setIsCloneGitModalOpen(false);
+                alert('Проект успешно загружен из Git-репозитория');
+            } else {
+                alert(`Ошибка загрузки проекта: ${projectResult.error}`);
+            }
+        } catch (err) {
+            alert(`Ошибка клонирования репозитория: ${(err as Error).message}`);
+        }
+    };
+
     return (
         <>
             <div style={{padding: '4px 8px', display: 'flex', gap: '4px'}} id="menu-container">
@@ -105,6 +124,12 @@ function MenuContainer() {
                             {
                                 text: 'Открыть проект',
                                 action: handleOpenProject
+                            },
+                            {
+                                text: 'Открыть проект из Git',
+                                action: () => {
+                                    setIsCloneGitModalOpen(true);
+                                }
                             },
                             {
                                 text: 'Сохранить проект',
@@ -157,6 +182,12 @@ function MenuContainer() {
                 open={isNewProjectModalOpen}
                 onClose={() => setIsNewProjectModalOpen(false)}
                 onCreate={handleCreateProject}
+            />
+
+            <CloneGitProjectPage
+                open={isCloneGitModalOpen}
+                onClose={() => setIsCloneGitModalOpen(false)}
+                onClone={handleCloneGitProject}
             />
         </>
     );

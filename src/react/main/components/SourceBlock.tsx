@@ -43,12 +43,6 @@ export const SourceBlock = ({ graph, block }: SourceBlockProps) => {
                     }}>
                         {block.name}
                     </Text>
-                    <Text variant="caption-2" style={{
-                        color: '#bdc3c7',
-                        fontSize: '10px',
-                    }}>
-                        ККТ
-                    </Text>
                 </div>
             </div>
         </GraphBlock>

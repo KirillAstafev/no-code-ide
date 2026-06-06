@@ -43,12 +43,6 @@ export const ModuleBlock = ({ graph, block }: ModuleBlockProps) => {
                     }}>
                         {block.name}
                     </Text>
-                    <Text variant="caption-2" style={{
-                        color: '#bdc3c7',
-                        fontSize: '10px',
-                    }}>
-                        Модуль
-                    </Text>
                 </div>
             </div>
         </GraphBlock>

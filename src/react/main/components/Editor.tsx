@@ -30,7 +30,7 @@ function Editor() {
                 is: `block-${node.type}`,
                 x: node.x || 0,
                 y: node.y || 0,
-                width: 90,
+                width: 120,
                 height: 90,
                 name: node.label,
                 anchors: []

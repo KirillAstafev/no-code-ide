@@ -43,12 +43,6 @@ export const DestinationBlock = ({ graph, block }: DestinationBlockProps) => {
                     }}>
                         {block.name}
                     </Text>
-                    <Text variant="caption-2" style={{
-                        color: '#bdc3c7',
-                        fontSize: '10px',
-                    }}>
-                        Приёмник
-                    </Text>
                 </div>
             </div>
         </GraphBlock>

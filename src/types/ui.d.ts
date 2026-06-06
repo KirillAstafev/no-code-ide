@@ -14,6 +14,7 @@ interface Window {
         addGitFiles: (path: string, files: string[]) => Promise<void>;
         commitGit: (path: string, message: string) => Promise<void>;
         pushGit: (path: string, remote: string, branch: string) => Promise<void>;
+        cloneGitRepository: (url: string, path: string) => Promise<void>;
         getGitStatus: (path: string) => Promise<{ modified: string[], added: string[], deleted: string[], untracked: string[] }>;
         getGitLog: (path: string, limit: number) => Promise<{ hash: string, message: string, author: string, date: string }[]>;
         isGitRepository: (path: string) => Promise<boolean>;
