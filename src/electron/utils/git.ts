@@ -24,6 +24,11 @@ export async function pushGit(path: string, remote: string = 'origin', branch: s
     await git.push(remote, branch);
 }
 
+export async function cloneGitRepository(url: string, path: string): Promise<void> {
+    const git = simpleGit();
+    await git.clone(url, path);
+}
+
 export async function getGitStatus(path: string): Promise<{ modified: string[], added: string[], deleted: string[], untracked: string[] }> {
     const git = getGitInstance(path);
     const status = await git.status();

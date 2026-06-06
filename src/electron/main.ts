@@ -5,6 +5,7 @@ import {
     addGitFiles,
     commitGit,
     pushGit,
+    cloneGitRepository,
     getGitStatus,
     getGitLog,
     isGitRepository
@@ -56,6 +57,7 @@ app.on("ready", () => {
     ipcMain.handle('getGitStatus', async (_: IpcMainInvokeEvent, path: string) => await getGitStatus(path));
     ipcMain.handle('getGitLog', async (_: IpcMainInvokeEvent, path: string, limit: number) => await getGitLog(path, limit));
     ipcMain.handle('isGitRepository', async (_: IpcMainInvokeEvent, path: string) => await isGitRepository(path));
+    ipcMain.handle('cloneGitRepository', async (_: IpcMainInvokeEvent, url: string, path: string) => await cloneGitRepository(url, path));
     ipcMain.handle('createWindow', () => {
         createWindow();
     });

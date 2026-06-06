@@ -27,6 +27,7 @@ electron.contextBridge.exposeInMainWorld('electron', {
     addGitFiles: (path: string, files: string[]) => electron.ipcRenderer.invoke('addGitFiles', path, files),
     commitGit: (path: string, message: string) => electron.ipcRenderer.invoke('commitGit', path, message),
     pushGit: (path: string, remote: string, branch: string) => electron.ipcRenderer.invoke('pushGit', path, remote, branch),
+    cloneGitRepository: (url: string, path: string) => electron.ipcRenderer.invoke('cloneGitRepository', url, path),
     getGitStatus: (path: string) => electron.ipcRenderer.invoke('getGitStatus', path),
     getGitLog: (path: string, limit: number) => electron.ipcRenderer.invoke('getGitLog', path, limit),
     isGitRepository: (path: string) => electron.ipcRenderer.invoke('isGitRepository', path),
