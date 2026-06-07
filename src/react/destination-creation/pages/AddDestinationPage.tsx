@@ -5,7 +5,7 @@ import {useProject} from "../../context/ProjectContext.tsx";
 interface AddDestinationPageProps {
     open: boolean;
     onClose: () => void;
-    onAdd: (name: string, dependency: ExternalDependency, url: string) => void;
+    onAdd: (name: string, url: string, dependency: ExternalDependency) => void;
 }
 
 export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
@@ -70,7 +70,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
         }
 
         if (dependency) {
-            onAdd(name.trim(), dependency, url);
+            onAdd(name.trim(), url, dependency);
         }
         setName('');
         setDependency(null);

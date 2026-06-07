@@ -104,7 +104,7 @@ function ElementPanel() {
         }
     };
 
-    const handleAddDestination = (name: string, dependency: ExternalDependency) => {
+    const handleAddDestination = (name: string, url: string, dependency: ExternalDependency) => {
         if (!project) return;
 
         let finalName = name;
@@ -117,7 +117,7 @@ function ElementPanel() {
 
         const newDestination: DataDestination = {
             name: finalName,
-            url: "http://localhost:8080",
+            url: url,
             dependency: dependency,
         };
 

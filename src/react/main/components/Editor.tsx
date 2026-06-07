@@ -1,16 +1,24 @@
-import {EAnchorType, Graph, GraphState, type TBlock, type TBlockId} from '@gravity-ui/graph';
-import {GraphCanvas, useGraph, GraphBlock} from '@gravity-ui/graph/react';
+import {EAnchorType, GraphState, type TBlock, type TBlockId, type TGraphConfig} from '@gravity-ui/graph';
+import {GraphCanvas, useGraph} from '@gravity-ui/graph/react';
 import {useCallback, useEffect} from 'react';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useSelection} from "../../context/SelectionContext.tsx";
 // @ts-expect-error
 import type {SelectionEvent} from "@gravity-ui/graph/build/graphEvents";
-import {ModuleBlock} from "./ModuleBlock";
-import {SourceBlock} from "./SourceBlock";
-import {DestinationBlock} from "./DestinationBlock";
+import {SOURCE_BLOCK, SourceBlock} from "./SourceBlock.ts";
+import {DESTINATION_BLOCK, DestinationBlock} from "./DestinationBlock.ts";
+import {MODULE_BLOCK, ModuleBlock} from "./ModuleBlock.ts";
 
 function Editor() {
-    const config = {};
+    const config: TGraphConfig = {
+        settings: {
+            blockComponents: {
+                [SOURCE_BLOCK]: SourceBlock,
+                [DESTINATION_BLOCK]: DestinationBlock,
+                [MODULE_BLOCK]: ModuleBlock,
+            }
+        }
+    };
     const {graph, setEntities, start} = useGraph(config);
     const {state} = useProject();
     const {project, isLoaded} = state;
@@ -25,30 +33,48 @@ function Editor() {
         const connections: any[] = [];
 
         schema.nodes?.forEach(node => {
-            const block: TBlock = {
+            const block: TBlock<any> = {
                 id: node.id,
-                is: `block-${node.type}`,
+                is: `${node.type}`,
                 x: node.x || 0,
                 y: node.y || 0,
                 width: 120,
                 height: 90,
                 name: node.label,
-                anchors: []
+                anchors: [],
+                meta: {
+                    ...node.data
+                }
             };
 
             if (node.type === 'module') {
                 block.anchors = [
                     {
-                        id: `${node.id}-out`,
+                        id: `input`,
+                        blockId: node.id,
+                        type: EAnchorType.IN,
+                        index: 0
+                    },
+                    {
+                        id: `output`,
+                        blockId: node.id,
+                        type: EAnchorType.OUT,
+                        index: 1
+                    }
+                ];
+            } else if (node.type === 'source') {
+                block.anchors = [
+                    {
+                        id: `output`,
                         blockId: node.id,
                         type: EAnchorType.OUT,
                         index: 0
                     }
                 ];
-            } else if (node.type === 'source' || node.type === 'destination') {
+            } else if (node.type === 'destination') {
                 block.anchors = [
                     {
-                        id: `${node.id}-in`,
+                        id: `input`,
                         blockId: node.id,
                         type: EAnchorType.IN,
                         index: 0
@@ -62,27 +88,14 @@ function Editor() {
         schema.edges?.forEach(edge => {
             connections.push({
                 sourceBlockId: edge.source,
-                sourceAnchorId: `${edge.source}-out`,
+                sourceAnchorId: `output`,
                 targetBlockId: edge.target,
-                targetAnchorId: `${edge.target}-in`,
+                targetAnchorId: `input`,
             });
         });
 
         setEntities({blocks, connections});
     }, [setEntities, project, isLoaded]);
-
-    const renderBlockFn = (graph: Graph, block: TBlock) => {
-        switch (block.is) {
-            case 'block-module':
-                return <ModuleBlock graph={graph} block={block} />;
-            case 'block-source':
-                return <SourceBlock graph={graph} block={block} />;
-            case 'block-destination':
-                return <DestinationBlock graph={graph} block={block} />;
-            default:
-                return <GraphBlock graph={graph} block={block}>{block.name}</GraphBlock>;
-        }
-    };
 
     const {selectElement} = useSelection();
 
@@ -99,7 +112,12 @@ function Editor() {
     return (
         <GraphCanvas
             graph={graph}
-            renderBlock={renderBlockFn}
+            renderBlock={(_graphObject, _block) => {
+                return (
+                    <div>
+                    </div>
+                )
+            }}
             onStateChanged={({state}) => {
                 if (state === GraphState.ATTACHED) {
                     start();
