@@ -3,8 +3,6 @@ import {CanvasBlock, type TAnchor, type TPoint} from '@gravity-ui/graph';
 export class SourceBlock extends CanvasBlock {
     public override getAnchorPosition(anchor: TAnchor): TPoint {
         const {x, y, width, height} = this.state;
-        console.log(anchor);
-
         return {
             x: x + width,
             y: y + height / 2
