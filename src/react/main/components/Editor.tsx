@@ -1,13 +1,19 @@
-import {EAnchorType, GraphState, type TBlock, type TBlockId, type TGraphConfig} from '@gravity-ui/graph';
+import {
+    EAnchorType,
+    ECanChangeBlockGeometry,
+    GraphState,
+    type TBlock,
+    type TBlockId,
+    type TGraphConfig
+} from '@gravity-ui/graph';
 import {GraphCanvas, useGraph} from '@gravity-ui/graph/react';
 import {useCallback, useEffect} from 'react';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useSelection} from "../../context/SelectionContext.tsx";
-// @ts-expect-error
-import type {SelectionEvent} from "@gravity-ui/graph/build/graphEvents";
 import {SOURCE_BLOCK, SourceBlock} from "./SourceBlock.ts";
 import {DESTINATION_BLOCK, DestinationBlock} from "./DestinationBlock.ts";
 import {MODULE_BLOCK, ModuleBlock} from "./ModuleBlock.ts";
+import type {SelectionEvent} from "@gravity-ui/graph/build/graphEvents";
 
 function Editor() {
     const config: TGraphConfig = {
@@ -16,11 +22,13 @@ function Editor() {
                 [SOURCE_BLOCK]: SourceBlock,
                 [DESTINATION_BLOCK]: DestinationBlock,
                 [MODULE_BLOCK]: ModuleBlock,
-            }
+            },
+            canCreateNewConnections: true,
+            canChangeBlockGeometry: ECanChangeBlockGeometry.ALL,
         }
     };
     const {graph, setEntities, start} = useGraph(config);
-    const {state} = useProject();
+    const {state, updateProject} = useProject();
     const {project, isLoaded} = state;
 
     useEffect(() => {
@@ -109,6 +117,19 @@ function Editor() {
         [project?.schema.nodes, selectElement]
     );
 
+    const onBlockDragEnd = useCallback(
+        (data: any, event: any) => {
+            const currentNode = project?.schema.nodes?.find(node => node.id === data.block.id);
+            if (currentNode) {
+                currentNode.x = data.block.x;
+                currentNode.y = data.block.y;
+            }
+
+            updateProject({...project});
+        },
+        [project, updateProject]
+    );
+
     return (
         <GraphCanvas
             graph={graph}
@@ -125,6 +146,7 @@ function Editor() {
                 }
             }}
             onBlockSelectionChange={onBlockSelectionChange}
+            onBlockDragEnd={onBlockDragEnd}
         />
     );
 }
