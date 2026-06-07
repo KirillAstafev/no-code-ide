@@ -1,14 +1,6 @@
-import {CanvasBlock, type TAnchor, type TPoint} from '@gravity-ui/graph';
+import {CanvasBlock} from '@gravity-ui/graph';
 
 export class DestinationBlock extends CanvasBlock {
-    public override getAnchorPosition(anchor: TAnchor): TPoint {
-        const {x, y, height} = this.state;
-        return {
-            x: x,
-            y: y + height / 2
-        };
-    }
-
     private renderBasic(ctx: CanvasRenderingContext2D) {
         const {x, y, width, height} = this.state;
         const scale = this.context.camera.getCameraScale();

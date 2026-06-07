@@ -1,11 +1,4 @@
-import {
-    EAnchorType,
-    ECanChangeBlockGeometry,
-    GraphState,
-    type TBlock,
-    type TBlockId,
-    type TGraphConfig
-} from '@gravity-ui/graph';
+import {EAnchorType, ECanChangeBlockGeometry, GraphState, type TBlock, type TGraphConfig} from '@gravity-ui/graph';
 import {GraphCanvas, useGraph} from '@gravity-ui/graph/react';
 import {useCallback, useEffect} from 'react';
 import {useProject} from "../../context/ProjectContext.tsx";
@@ -13,7 +6,6 @@ import {useSelection} from "../../context/SelectionContext.tsx";
 import {SOURCE_BLOCK, SourceBlock} from "./SourceBlock.ts";
 import {DESTINATION_BLOCK, DestinationBlock} from "./DestinationBlock.ts";
 import {MODULE_BLOCK, ModuleBlock} from "./ModuleBlock.ts";
-import type {SelectionEvent} from "@gravity-ui/graph/build/graphEvents";
 
 function Editor() {
     const config: TGraphConfig = {
@@ -46,7 +38,7 @@ function Editor() {
                 is: `${node.type}`,
                 x: node.x || 0,
                 y: node.y || 0,
-                width: 120,
+                width: 140,
                 height: 90,
                 name: node.label,
                 anchors: [],
@@ -58,13 +50,13 @@ function Editor() {
             if (node.type === 'module') {
                 block.anchors = [
                     {
-                        id: `input`,
+                        id: `${node.id}-input`,
                         blockId: node.id,
                         type: EAnchorType.IN,
                         index: 0
                     },
                     {
-                        id: `output`,
+                        id: `${node.id}-output`,
                         blockId: node.id,
                         type: EAnchorType.OUT,
                         index: 1
@@ -73,7 +65,7 @@ function Editor() {
             } else if (node.type === 'source') {
                 block.anchors = [
                     {
-                        id: `output`,
+                        id: `${node.id}-output`,
                         blockId: node.id,
                         type: EAnchorType.OUT,
                         index: 0
@@ -82,7 +74,7 @@ function Editor() {
             } else if (node.type === 'destination') {
                 block.anchors = [
                     {
-                        id: `input`,
+                        id: `${node.id}-input`,
                         blockId: node.id,
                         type: EAnchorType.IN,
                         index: 0
@@ -96,9 +88,9 @@ function Editor() {
         schema.edges?.forEach(edge => {
             connections.push({
                 sourceBlockId: edge.source,
-                sourceAnchorId: `output`,
+                sourceAnchorId: `${edge.source}-output`,
                 targetBlockId: edge.target,
-                targetAnchorId: `input`,
+                targetAnchorId: `${edge.target}input`,
             });
         });
 
@@ -108,7 +100,7 @@ function Editor() {
     const {selectElement} = useSelection();
 
     const onBlockSelectionChange = useCallback(
-        (detail: SelectionEvent<TBlockId>) => {
+        (detail: any) => {
             const blockId = detail.list[0];
             const node = project?.schema.nodes?.find(n => n.id === blockId);
 
@@ -118,7 +110,7 @@ function Editor() {
     );
 
     const onBlockDragEnd = useCallback(
-        (data: any, event: any) => {
+        (data: any) => {
             const currentNode = project?.schema.nodes?.find(node => node.id === data.block.id);
             if (currentNode) {
                 currentNode.x = data.block.x;
