@@ -17,6 +17,7 @@ function Editor() {
             },
             canCreateNewConnections: true,
             canChangeBlockGeometry: ECanChangeBlockGeometry.ALL,
+            useBlocksAnchors: false
         }
     };
     const {graph, setEntities, start} = useGraph(config);
