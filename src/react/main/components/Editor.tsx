@@ -112,6 +112,13 @@ function Editor() {
             const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
             if (moduleIndex === -1) return;
 
+            // Фильтруем только новые источники и приёмники
+            const currentSourceNames = currentModule.sources?.map(s => s.name) || [];
+            const currentDestinationNames = currentModule.destinations?.map(d => d.name) || [];
+            
+            const newSourceIds = sourceIds.filter(id => !currentSourceNames.includes(id));
+            const newDestinationIds = destinationIds.filter(id => !currentDestinationNames.includes(id));
+
             const newModule = {
                 ...currentModule,
                 sources: sourceIds.map(sourceName =>
@@ -128,7 +135,8 @@ function Editor() {
             const newConnections: any[] = [];
             const moduleBlockId = `module-${currentModule.name}`;
 
-            sourceIds.forEach(sourceName => {
+            // Добавляем только новые связи
+            newSourceIds.forEach(sourceName => {
                 const sourceNode = project.schema.nodes?.find(n => n.data.name === sourceName);
                 if (sourceNode) {
                     const connectionId = `${sourceNode.id}_${moduleBlockId}`;
@@ -140,7 +148,7 @@ function Editor() {
                 }
             });
 
-            destinationIds.forEach(destinationName => {
+            newDestinationIds.forEach(destinationName => {
                 const destinationNode = project.schema.nodes?.find(n => n.data.name === destinationName);
                 if (destinationNode) {
                     const connectionId = `${moduleBlockId}_${destinationNode.id}`;
@@ -152,20 +160,20 @@ function Editor() {
                 }
             });
 
+            const existingEdges = project.schema.edges || [];
+            const existingNodes = project.schema.nodes || [];
+            
             updateProject({
                 modules: newModules,
-            });
-
-            const existingEdges = project.schema.edges || [];
-            updateProject({
                 schema: {
                     ...project.schema,
+                    nodes: existingNodes.map(node =>
+                        node.id === `module-${currentModule.name}`
+                            ? { ...node, data: newModule }
+                            : node
+                    ),
                     edges: [...existingEdges, ...newConnections],
                 },
-            });
-
-            graph.setEntities({
-                connections: newConnections
             });
 
             setIsModalOpen(false);
