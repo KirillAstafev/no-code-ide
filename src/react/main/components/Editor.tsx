@@ -1,11 +1,12 @@
+import {useCallback, useEffect, useState} from 'react';
 import {EAnchorType, ECanChangeBlockGeometry, GraphState, type TBlock, type TGraphConfig} from '@gravity-ui/graph';
 import {GraphCanvas, useGraph} from '@gravity-ui/graph/react';
-import {useCallback, useEffect} from 'react';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useSelection} from "../../context/SelectionContext.tsx";
 import {SOURCE_BLOCK, SourceBlock} from "./SourceBlock.ts";
 import {DESTINATION_BLOCK, DestinationBlock} from "./DestinationBlock.ts";
 import {MODULE_BLOCK, ModuleBlock} from "./ModuleBlock.ts";
+import {ModuleConnectionsModal} from "./ModuleConnectionsModal.tsx";
 
 function Editor() {
     const config: TGraphConfig = {
@@ -23,6 +24,8 @@ function Editor() {
     const {graph, setEntities, start} = useGraph(config);
     const {state, updateProject} = useProject();
     const {project, isLoaded} = state;
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentModule, setCurrentModule] = useState<Module | null>(null);
 
     useEffect(() => {
         if (!isLoaded || !project || !project.schema) {
@@ -91,7 +94,7 @@ function Editor() {
                 sourceBlockId: edge.source,
                 sourceAnchorId: `${edge.source}-output`,
                 targetBlockId: edge.target,
-                targetAnchorId: `${edge.target}input`,
+                targetAnchorId: `${edge.target}-input`,
             });
         });
 
@@ -123,24 +126,80 @@ function Editor() {
         [project, updateProject]
     );
 
+    const onBlockDblClick = useCallback(
+        (data: any) => {
+            const blockId = data.target?.state.id;
+            const node = project?.schema.nodes?.find(n => n.id === blockId);
+            
+            if (node?.type === 'module' && node.data) {
+                setCurrentModule(node.data as Module);
+                setIsModalOpen(true);
+            }
+        },
+        [project?.schema.nodes]
+    );
+
+    const handleModalConfirm = useCallback(
+        (sourceIds: string[], destinationIds: string[]) => {
+            if (!currentModule || !project) return;
+
+            const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
+            if (moduleIndex === -1) return;
+
+            const newModule = {
+                ...currentModule,
+                sources: sourceIds.map(sourceName => 
+                    project.sources?.find(s => s.name === sourceName)
+                ).filter((source): source is DataSource => !!source),
+                destinations: destinationIds.map(destinationName => 
+                    project.destinations?.find(d => d.name === destinationName)
+                ).filter((destination): destination is DataDestination => !!destination),
+            };
+
+            const newModules = [...project.modules];
+            newModules[moduleIndex] = newModule;
+
+            updateProject({
+                modules: newModules,
+            });
+
+            setIsModalOpen(false);
+            setCurrentModule(null);
+        },
+        [currentModule, project, updateProject]
+    );
+
     return (
-        <GraphCanvas
-            graph={graph}
-            renderBlock={(_graphObject, _block) => {
-                return (
-                    <div>
-                    </div>
-                )
-            }}
-            onStateChanged={({state}) => {
-                if (state === GraphState.ATTACHED) {
-                    start();
-                    graph.zoomTo("center");
-                }
-            }}
-            onBlockSelectionChange={onBlockSelectionChange}
-            onBlockDragEnd={onBlockDragEnd}
-        />
+        <>
+            <GraphCanvas
+                graph={graph}
+                renderBlock={(_graphObject, _block) => {
+                    return (
+                        <div>
+                        </div>
+                    )
+                }}
+                onStateChanged={({state}) => {
+                    if (state === GraphState.ATTACHED) {
+                        start();
+                        graph.zoomTo("center");
+                    }
+                }}
+                onBlockSelectionChange={onBlockSelectionChange}
+                onBlockDragEnd={onBlockDragEnd}
+                dblclick={onBlockDblClick}
+            />
+            {currentModule && isLoaded && project && (
+                <ModuleConnectionsModal
+                    open={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    onConfirm={handleModalConfirm}
+                    module={currentModule}
+                    availableSources={project.sources || []}
+                    availableDestinations={project.destinations || []}
+                />
+            )}
+        </>
     );
 }
 
