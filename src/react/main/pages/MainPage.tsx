@@ -1,10 +1,11 @@
 import MenuContainer from '../containers/MenuContainer.tsx';
 import WindowButtonContainer from '../containers/WindowButtonContainer.tsx';
 import MainContentContainer from "../containers/MainContentContainer.tsx";
+import BuildProgressPanel from "../components/BuildProgressPanel";
 
 function MainPage() {
     return (
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
             <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -17,6 +18,7 @@ function MainPage() {
             </div>
 
             <MainContentContainer/>
+            <BuildProgressPanel />
         </div>
     );
 }

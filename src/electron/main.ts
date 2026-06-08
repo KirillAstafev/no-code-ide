@@ -50,6 +50,12 @@ app.on("ready", () => {
 
     ipcMain.handle('saveProject', saveProject);
     ipcMain.handle('buildProject', buildProject);
+    ipcMain.on('build-progress', (event, { type, payload }) => {
+        const window = getWindow('main');
+        if (window) {
+            window.webContents.send('build-progress', { type, payload });
+        }
+    });
     ipcMain.handle('initGitRepository', async (_: IpcMainInvokeEvent, path: string) => await initGitRepository(path));
     ipcMain.handle('addGitFiles', async (_: IpcMainInvokeEvent, path: string, files: string[]) => await addGitFiles(path, files));
     ipcMain.handle('commitGit', async (_: IpcMainInvokeEvent, path: string, message: string) => await commitGit(path, message));

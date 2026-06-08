@@ -1,4 +1,4 @@
-import {IpcMainInvokeEvent} from 'electron';
+import {IpcMainInvokeEvent, BrowserWindow} from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import unzipper from 'unzipper';
@@ -293,6 +293,15 @@ export const buildProject = async (
         const zip = await unzipper.Open.buffer(buffer);
         await zip.extract({ path: generatedDir });
 
+        // Отправляем сообщение о прогрессе - скачивание завершено
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (window) {
+            window.webContents.send('build-progress', {
+                type: 'stage',
+                payload: { stage: 'generating' }
+            });
+        }
+
         const generatedItems = await fs.readdir(generatedDir);
         const templateFolder = generatedItems.find(item => 
             fs.stat(path.join(generatedDir, item)).then(s => s.isDirectory()).catch(() => false)
@@ -300,6 +309,15 @@ export const buildProject = async (
         
         if (templateFolder) {
             const templatePath = path.join(generatedDir, templateFolder);
+
+            // Отправляем сообщение о прогрессе - начало сборки
+            const window = BrowserWindow.fromWebContents(event.sender);
+            if (window) {
+                window.webContents.send('build-progress', {
+                    type: 'stage',
+                    payload: { stage: 'building' }
+                });
+            }
 
             const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
             
@@ -315,6 +333,17 @@ export const buildProject = async (
                 
                 gradleProcess.stdout.on('data', (data) => {
                     console.log(data.toString());
+                    // Обновляем прогресс на основе вывода (примерная логика)
+                    const output = data.toString();
+                    if (output.includes('BUILD')) {
+                        const window = BrowserWindow.fromWebContents(event.sender);
+                        if (window) {
+                            window.webContents.send('build-progress', {
+                                type: 'progress',
+                                payload: { progress: 70 }
+                            });
+                        }
+                    }
                 });
                 
                 gradleProcess.stderr.on('data', (data) => {
@@ -324,6 +353,17 @@ export const buildProject = async (
                 gradleProcess.on('close', (code: number) => {
                     if (code === 0) {
                         console.log('Gradle сборка завершена успешно');
+                        // Отправляем сообщение о завершении
+                        const finishWindow = BrowserWindow.fromWebContents(event.sender);
+                        if (finishWindow) {
+                            finishWindow.webContents.send('build-progress', {
+                                type: 'progress',
+                                payload: { progress: 100 }
+                            });
+                            finishWindow.webContents.send('build-progress', {
+                                type: 'finish'
+                            });
+                        }
                         resolve(true);
                     } else {
                         reject(new Error(`Gradle сборка завершилась с кодом ${code}`));
@@ -334,6 +374,18 @@ export const buildProject = async (
                     reject(new Error(`Ошибка запуска Gradle: ${error.message}`));
                 });
             });
+        } else {
+            // Если шаблон не найден, отправляем прогресс 100% и finish
+            const window = BrowserWindow.fromWebContents(event.sender);
+            if (window) {
+                window.webContents.send('build-progress', {
+                    type: 'progress',
+                    payload: { progress: 100 }
+                });
+                window.webContents.send('build-progress', {
+                    type: 'finish'
+                });
+            }
         }
 
         return { success: true, path: generatedDir };

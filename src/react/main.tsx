@@ -9,13 +9,16 @@ import MainPage from './main/pages/MainPage.tsx'
 import {ProjectProvider} from "./context/ProjectContext.tsx";
 import {WindowProvider} from "./context/WindowContext.tsx";
 import {GitProvider} from "./context/GitContext.tsx";
+import {BuildProgressProvider} from "./main/context/BuildProgressContext";
 
 createRoot(document.getElementById('root')!).render(
   <ThemeProvider theme="dark">
       <WindowProvider>
           <ProjectProvider>
               <GitProvider>
-                  <MainPage />
+                  <BuildProgressProvider>
+                      <MainPage />
+                  </BuildProgressProvider>
               </GitProvider>
           </ProjectProvider>
       </WindowProvider>

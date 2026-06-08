@@ -1,17 +1,42 @@
 import {Button, DropdownMenu} from '@gravity-ui/uikit';
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useWindow} from "../../context/WindowContext.tsx";
 import {CloneGitProjectPage} from "../../git/components/CloneGitProjectPage.tsx";
+import {useBuildProgress} from "../context/BuildProgressContext";
 
 function MenuContainer() {
     const {loadProject, saveProject, clearProject, state} = useProject();
     const {state: windowState} = useWindow();
     const {isLoaded, isModified, project} = state;
     const {windowId} = windowState;
+    const {startBuild, setStage, finishBuild} = useBuildProgress();
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
     const [isCloneGitModalOpen, setIsCloneGitModalOpen] = useState(false);
+
+    // Обработка событий прогресса сборки
+    useEffect(() => {
+        const handleBuildProgress = (_event: any, { type, payload }: any) => {
+            switch (type) {
+                case 'stage':
+                    setStage(payload.stage);
+                    break;
+                case 'progress':
+                    // TODO: обновление прогресса (нужна реализация)
+                    break;
+                case 'finish':
+                    finishBuild();
+                    break;
+            }
+        };
+
+        window.electron.on('build-progress', handleBuildProgress);
+
+        return () => {
+            window.electron.off('build-progress', handleBuildProgress);
+        };
+    }, [setStage, finishBuild]);
 
     const handleOpenProject = async () => {
         const result = await window.electron.openProjectDialog();
@@ -67,6 +92,9 @@ function MenuContainer() {
 
     const handleBuildProject = async () => {
         if (!project) return;
+
+        // Начинаем сборку
+        startBuild('downloading');
 
         try {
             const result = await window.electron.buildProject(project);
