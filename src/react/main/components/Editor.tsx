@@ -168,8 +168,6 @@ function Editor() {
                 connections: newConnections
             });
 
-            console.log(newConnections);
-
             setIsModalOpen(false);
             setCurrentModule(null);
         },

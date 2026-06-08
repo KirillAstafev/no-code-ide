@@ -28,8 +28,8 @@ function generateSchemaFromProject(project: Project): Schema {
             });
             edges.push({
                 id: `edge-${sourceId}-to-${moduleId}`,
-                source: sourceId,
-                target: moduleId,
+                sourceBlockId: sourceId,
+                targetBlockId: moduleId,
                 label: 'input',
                 arrowhead: 'arrow',
             });
@@ -46,8 +46,8 @@ function generateSchemaFromProject(project: Project): Schema {
             });
             edges.push({
                 id: `edge-${moduleId}-to-${destId}`,
-                source: moduleId,
-                target: destId,
+                sourceBlockId: moduleId,
+                targetBlockId: destId,
                 label: 'output',
                 arrowhead: 'arrow',
             });
