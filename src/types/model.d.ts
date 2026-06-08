@@ -10,8 +10,8 @@ interface SchemaNode {
 
 interface SchemaEdge {
     id: string;
-    source: string;
-    target: string;
+    sourceBlockId: string;
+    targetBlockId: string;
     label?: string;
     style?: 'solid' | 'dashed';
     arrowhead?: 'none' | 'arrow' | 'dot';

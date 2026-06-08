@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState} from 'react';
-import {EAnchorType, ECanChangeBlockGeometry, GraphState, type TBlock, type TGraphConfig} from '@gravity-ui/graph';
+import {ECanChangeBlockGeometry, GraphState, type TBlock, type TConnection, type TGraphConfig} from '@gravity-ui/graph';
 import {GraphCanvas, useGraph} from '@gravity-ui/graph/react';
 import {useProject} from "../../context/ProjectContext.tsx";
 import {useSelection} from "../../context/SelectionContext.tsx";
@@ -34,7 +34,7 @@ function Editor() {
 
         const schema = project.schema;
         const blocks: TBlock[] = [];
-        const connections: any[] = [];
+        const connections: TConnection[] = [];
 
         schema.nodes?.forEach(node => {
             const block: TBlock<any> = {
@@ -51,51 +51,17 @@ function Editor() {
                 }
             };
 
-            if (node.type === 'module') {
-                block.anchors = [
-                    {
-                        id: `${node.id}-input`,
-                        blockId: node.id,
-                        type: EAnchorType.IN,
-                        index: 0
-                    },
-                    {
-                        id: `${node.id}-output`,
-                        blockId: node.id,
-                        type: EAnchorType.OUT,
-                        index: 1
-                    }
-                ];
-            } else if (node.type === 'source') {
-                block.anchors = [
-                    {
-                        id: `${node.id}-output`,
-                        blockId: node.id,
-                        type: EAnchorType.OUT,
-                        index: 0
-                    }
-                ];
-            } else if (node.type === 'destination') {
-                block.anchors = [
-                    {
-                        id: `${node.id}-input`,
-                        blockId: node.id,
-                        type: EAnchorType.IN,
-                        index: 0
-                    }
-                ];
-            }
-
             blocks.push(block);
         });
 
         schema.edges?.forEach(edge => {
-            connections.push({
-                sourceBlockId: edge.source,
-                sourceAnchorId: `${edge.source}-output`,
-                targetBlockId: edge.target,
-                targetAnchorId: `${edge.target}-input`,
-            });
+            const connection: TConnection = {
+                id: edge.id,
+                sourceBlockId: `${edge.sourceBlockId}`,
+                targetBlockId: `${edge.targetBlockId}`
+            };
+
+            connections.push(connection);
         });
 
         setEntities({blocks, connections});
@@ -130,7 +96,7 @@ function Editor() {
         (data: any) => {
             const blockId = data.target?.state.id;
             const node = project?.schema.nodes?.find(n => n.id === blockId);
-            
+
             if (node?.type === 'module' && node.data) {
                 setCurrentModule(node.data as Module);
                 setIsModalOpen(true);
@@ -148,10 +114,10 @@ function Editor() {
 
             const newModule = {
                 ...currentModule,
-                sources: sourceIds.map(sourceName => 
+                sources: sourceIds.map(sourceName =>
                     project.sources?.find(s => s.name === sourceName)
                 ).filter((source): source is DataSource => !!source),
-                destinations: destinationIds.map(destinationName => 
+                destinations: destinationIds.map(destinationName =>
                     project.destinations?.find(d => d.name === destinationName)
                 ).filter((destination): destination is DataDestination => !!destination),
             };
@@ -159,14 +125,55 @@ function Editor() {
             const newModules = [...project.modules];
             newModules[moduleIndex] = newModule;
 
+            const newConnections: any[] = [];
+            const moduleBlockId = `module-${currentModule.name}`;
+
+            sourceIds.forEach(sourceName => {
+                const sourceNode = project.schema.nodes?.find(n => n.data.name === sourceName);
+                if (sourceNode) {
+                    const connectionId = `${sourceNode.id}_${moduleBlockId}`;
+                    newConnections.push({
+                        id: connectionId,
+                        sourceBlockId: sourceNode.id,
+                        targetBlockId: moduleBlockId,
+                    });
+                }
+            });
+
+            destinationIds.forEach(destinationName => {
+                const destinationNode = project.schema.nodes?.find(n => n.data.name === destinationName);
+                if (destinationNode) {
+                    const connectionId = `${moduleBlockId}_${destinationNode.id}`;
+                    newConnections.push({
+                        id: connectionId,
+                        sourceBlockId: moduleBlockId,
+                        targetBlockId: destinationNode.id,
+                    });
+                }
+            });
+
             updateProject({
                 modules: newModules,
             });
 
+            const existingEdges = project.schema.edges || [];
+            updateProject({
+                schema: {
+                    ...project.schema,
+                    edges: [...existingEdges, ...newConnections],
+                },
+            });
+
+            graph.setEntities({
+                connections: newConnections
+            });
+
+            console.log(newConnections);
+
             setIsModalOpen(false);
             setCurrentModule(null);
         },
-        [currentModule, project, updateProject]
+        [currentModule, graph, project, updateProject]
     );
 
     return (
