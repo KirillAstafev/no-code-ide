@@ -27,7 +27,7 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
         },
         {
             name: 'ClickHouse JDBC',
-            category: 'NoSQL',
+            category: 'SQL',
             description: 'Колоночная база данных для аналитики',
             dependencyCode: 'clickhouse'
         },

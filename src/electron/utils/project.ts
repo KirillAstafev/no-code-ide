@@ -2,6 +2,7 @@ import {IpcMainInvokeEvent} from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import unzipper from 'unzipper';
+import {spawn} from "node:child_process";
 
 function generateSchemaFromProject(project: Project): Schema {
     const nodes: SchemaNode[] = [];
@@ -291,6 +292,49 @@ export const buildProject = async (
 
         const zip = await unzipper.Open.buffer(buffer);
         await zip.extract({ path: generatedDir });
+
+        const generatedItems = await fs.readdir(generatedDir);
+        const templateFolder = generatedItems.find(item => 
+            fs.stat(path.join(generatedDir, item)).then(s => s.isDirectory()).catch(() => false)
+        );
+        
+        if (templateFolder) {
+            const templatePath = path.join(generatedDir, templateFolder);
+
+            const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+            
+            console.log(`Выполнение Gradle сборки в папке: ${templatePath}`);
+            
+            await new Promise((resolve, reject) => {
+                const gradleProcess = spawn(gradlewCmd, ['build'], {
+                    cwd: templatePath,
+                    stdio: 'pipe',
+                    shell: true,
+                    env: { ...process.env, NO_COLOR: '1' }
+                });
+                
+                gradleProcess.stdout.on('data', (data) => {
+                    console.log(data.toString());
+                });
+                
+                gradleProcess.stderr.on('data', (data) => {
+                    console.error(data.toString());
+                });
+                
+                gradleProcess.on('close', (code: number) => {
+                    if (code === 0) {
+                        console.log('Gradle сборка завершена успешно');
+                        resolve(true);
+                    } else {
+                        reject(new Error(`Gradle сборка завершилась с кодом ${code}`));
+                    }
+                });
+                
+                gradleProcess.on('error', (error: Error) => {
+                    reject(new Error(`Ошибка запуска Gradle: ${error.message}`));
+                });
+            });
+        }
 
         return { success: true, path: generatedDir };
     } catch (error) {

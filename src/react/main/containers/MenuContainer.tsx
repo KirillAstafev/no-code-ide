@@ -72,7 +72,7 @@ function MenuContainer() {
             const result = await window.electron.buildProject(project);
 
             if (result.success) {
-                alert(`Проект успешно собран! Шаблон Spring Boot приложения сгенерирован и распакован в папку ${result.path}`);
+                alert(`Проект успешно собран в папке ${result.path}`);
             } else {
                 alert(`Ошибка сборки: ${result.error}`);
             }
