@@ -1,5 +1,7 @@
 import React from 'react';
 import { Modal, Text, Button, Alert, Select } from '@gravity-ui/uikit';
+import { SourceCommandConfig } from './SourceCommandConfig';
+import { DATA_SOURCE_COMMANDS } from './constants/dataSourceCommands';
 
 interface ModuleConnectionsModalProps {
     open: boolean;
@@ -13,6 +15,8 @@ interface ModuleConnectionsModalProps {
 interface SourceConnection {
     source: DataSource;
     enabled: boolean;
+    command: DataSourceCommand;
+    commandParams: Record<string, string | number | boolean>;
 }
 
 interface DestinationConnection {
@@ -35,10 +39,15 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
     React.useEffect(() => {
         if (open) {
             setSourceConnections(
-                availableSources.map(source => ({
-                    source,
-                    enabled: module.sources?.some(s => s.name === source.name) || false
-                }))
+                availableSources.map(source => {
+                    const existingSource = module.sources?.find(s => s.name === source.name);
+                    return {
+                        source,
+                        enabled: !!existingSource,
+                        command: existingSource?.command || DATA_SOURCE_COMMANDS[0],
+                        commandParams: existingSource?.commandParams || {}
+                    };
+                })
             );
             setDestinationConnections(
                 availableDestinations.map(destination => ({
@@ -55,6 +64,29 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
         );
     };
 
+    const handleSourceCommandChange = (sourceName: string, commandName: string) => {
+        const command = DATA_SOURCE_COMMANDS.find(c => c.name === commandName) || DATA_SOURCE_COMMANDS[0];
+        const params: Record<string, string | number | boolean> = {};
+
+        command.parameters.forEach(param => {
+            params[param.name] = param.defaultValue ?? (param.type === 'string' ? '' : param.type === 'number' ? 0 : false);
+        });
+
+        setSourceConnections(prev =>
+            prev.map(sc => sc.source.name === sourceName ? { ...sc, command, commandParams: params } : sc)
+        );
+    };
+
+    const handleSourceParamChange = (sourceName: string, paramName: string, value: string | number | boolean) => {
+        setSourceConnections(prev =>
+            prev.map(sc =>
+                sc.source.name === sourceName
+                    ? { ...sc, commandParams: { ...sc.commandParams, [paramName]: value } }
+                    : sc
+            )
+        );
+    };
+
     const handleDestinationToggle = (destinationName: string, enabled: boolean) => {
         setDestinationConnections(prev =>
             prev.map(dc => dc.destination.name === destinationName ? { ...dc, enabled } : dc)
@@ -63,52 +95,28 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
 
     const handleConfirm = () => {
         const selectedSources = sourceConnections.filter(sc => sc.enabled).map(sc => sc.source.name);
-        const selectedDestinations = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination.name);
+        const selectedDestinations = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination);
 
         if (selectedSources.length === 0 && selectedDestinations.length === 0) {
             setError('Модуль должен быть связан хотя бы с одним источником или приёмником');
             return;
         }
 
-        onConfirm(selectedSources, selectedDestinations);
+        onConfirm(selectedSources, selectedDestinations.map(d => d.name));
         setError(null);
     };
 
-    const SelectedSourcesList = () => {
-        const selected = sourceConnections.filter(sc => sc.enabled).map(sc => sc.source);
-        return (
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                {selected.length === 0 ? (
-                    <Text variant="body-2" color="secondary">Нет выбранных источников</Text>
-                ) : (
-                    selected.map(source => (
-                        <div key={source.name} style={{ padding: '8px', borderBottom: '1px solid var(--g-color-line-generic)' }}>
-                            <Text variant="body-2">{source.name}</Text>
-                            <Text variant="caption-1" color="secondary">
-                                {source.ipAddress}:{source.tcpPort}
-                            </Text>
-                        </div>
-                    ))
-                )}
-            </div>
-        );
-    };
-
-    const SelectedDestinationsList = () => {
+    const renderSelectedDestinations = () => {
         const selected = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination);
-        return (
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                {selected.length === 0 ? (
-                    <Text variant="body-2" color="secondary">Нет выбранных приёмников</Text>
-                ) : (
-                    selected.map(destination => (
-                        <div key={destination.name} style={{ padding: '8px', borderBottom: '1px solid var(--g-color-line-generic)' }}>
-                            <Text variant="body-2">{destination.name}</Text>
-                            <Text variant="caption-1" color="secondary">{destination.url}</Text>
-                        </div>
-                    ))
-                )}
-            </div>
+        return selected.length === 0 ? (
+            <Text variant="body-2" color="secondary">Нет выбранных приёмников</Text>
+        ) : (
+            selected.map(destination => (
+                <div key={destination.name} style={{ padding: '8px', borderBottom: '1px solid var(--g-color-line-generic)' }}>
+                    <Text variant="body-2">{destination.name}</Text>
+                    <Text variant="caption-1" color="secondary">{destination.url}</Text>
+                </div>
+            ))
         );
     };
 
@@ -266,13 +274,25 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                 <Text variant="body-2" style={{ fontWeight: 500, marginBottom: '12px' }}>
                                     Выбранные источники ({sourceConnections.filter(sc => sc.enabled).length})
                                 </Text>
-                                <SelectedSourcesList />
+                                {sourceConnections.filter(sc => sc.enabled).map(sc => (
+                                    <SourceCommandConfig
+                                        key={sc.source.name}
+                                        sourceName={sc.source.name}
+                                        command={sc.command}
+                                        commandParams={sc.commandParams}
+                                        onCommandChange={(commandName) => handleSourceCommandChange(sc.source.name, commandName)}
+                                        onParamChange={(paramName, value) => handleSourceParamChange(sc.source.name, paramName, value)}
+                                    />
+                                ))}
+                                {sourceConnections.filter(sc => sc.enabled).length === 0 && (
+                                    <Text variant="body-2" color="secondary">Нет выбранных источников</Text>
+                                )}
                             </div>
                             <div>
                                 <Text variant="body-2" style={{ fontWeight: 500, marginBottom: '12px' }}>
                                     Выбранные приёмники ({destinationConnections.filter(dc => dc.enabled).length})
                                 </Text>
-                                <SelectedDestinationsList />
+                                {renderSelectedDestinations()}
                             </div>
                         </div>
                     </div>

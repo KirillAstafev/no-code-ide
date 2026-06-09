@@ -46,10 +46,24 @@ interface Module {
     destinations: DataDestination[];
 }
 
+interface DataSourceCommandParameter {
+    name: string;
+    type: 'string' | 'number' | 'boolean';
+    defaultValue?: string | number | boolean;
+}
+
+interface DataSourceCommand {
+    name: string;
+    description: string;
+    parameters: DataSourceCommandParameter[];
+}
+
 interface DataSource {
     name: string;
     ipAddress: string;
     tcpPort: number;
+    command?: DataSourceCommand;
+    commandParams?: Record<string, string | number | boolean>;
 }
 
 interface DataDestination {
