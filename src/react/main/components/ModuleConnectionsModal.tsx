@@ -24,14 +24,47 @@ interface DestinationConnection {
     enabled: boolean;
 }
 
+// Конфигурация значений по умолчанию для разных типов команд
+const DEFAULT_VALUES_CONFIG: Record<string, Record<string, string | number | boolean>> = {
+    NEVA_: {
+        connectionType: 'TCPIP',
+        ipAddress: '192.168.1.100',
+        ipPort: 7777,
+        comPort: 'COM3',
+        baudRate: 115200,
+        model: 2,
+        accessPassword: '',
+        userPassword: '',
+        operatorId: 1,
+        receiptType: 'SELL',
+        paymentType: 'CASH',
+        documentType: 'RECEIPT',
+        syncWithSystem: true
+    },
+    DEFAULT_: {
+        pollingInterval: 1000,
+        maxRetries: 3,
+        timeout: 5000,
+        bufferSize: 4096,
+        compression: false
+    }
+};
+
+// Типы значений по умолчанию в зависимости от типа параметра
+const DEFAULT_BY_TYPE: Record<string, string | number | boolean> = {
+    string: '',
+    number: 0,
+    boolean: false
+};
+
 export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
-    open,
-    onClose,
-    onConfirm,
-    module,
-    availableSources,
-    availableDestinations,
-}) => {
+                                                                                  open,
+                                                                                  onClose,
+                                                                                  onConfirm,
+                                                                                  module,
+                                                                                  availableSources,
+                                                                                  availableDestinations,
+                                                                              }) => {
     const [sourceConnections, setSourceConnections] = React.useState<SourceConnection[]>([]);
     const [destinationConnections, setDestinationConnections] = React.useState<DestinationConnection[]>([]);
     const [error, setError] = React.useState<string | null>(null);
@@ -58,6 +91,25 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
         }
     }, [open, availableSources, availableDestinations, module]);
 
+    const getDefaultParamsForCommand = (command: DataSourceCommand): Record<string, string | number | boolean> => {
+        const commandPrefix = command.name.split('_')[0] + '_';
+        const defaultValues = DEFAULT_VALUES_CONFIG[commandPrefix] || DEFAULT_VALUES_CONFIG.DEFAULT_;
+
+        const params: Record<string, string | number | boolean> = {};
+
+        command.parameters.forEach(param => {
+            if (defaultValues[param.name] !== undefined) {
+                params[param.name] = defaultValues[param.name];
+            } else if (param.defaultValue !== undefined) {
+                params[param.name] = param.defaultValue;
+            } else {
+                params[param.name] = DEFAULT_BY_TYPE[param.type] ?? '';
+            }
+        });
+
+        return params;
+    };
+
     const handleSourceToggle = (sourceName: string, enabled: boolean) => {
         setSourceConnections(prev =>
             prev.map(sc => sc.source.name === sourceName ? { ...sc, enabled } : sc)
@@ -66,11 +118,7 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
 
     const handleSourceCommandChange = (sourceName: string, commandName: string) => {
         const command = DATA_SOURCE_COMMANDS.find(c => c.name === commandName) || DATA_SOURCE_COMMANDS[0];
-        const params: Record<string, string | number | boolean> = {};
-
-        command.parameters.forEach(param => {
-            params[param.name] = param.defaultValue ?? (param.type === 'string' ? '' : param.type === 'number' ? 0 : false);
-        });
+        const params = getDefaultParamsForCommand(command);
 
         setSourceConnections(prev =>
             prev.map(sc => sc.source.name === sourceName ? { ...sc, command, commandParams: params } : sc)
@@ -95,14 +143,14 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
 
     const handleConfirm = () => {
         const selectedSources = sourceConnections.filter(sc => sc.enabled).map(sc => sc.source.name);
-        const selectedDestinations = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination);
+        const selectedDestinations = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination.name);
 
         if (selectedSources.length === 0 && selectedDestinations.length === 0) {
             setError('Модуль должен быть связан хотя бы с одним источником или приёмником');
             return;
         }
 
-        onConfirm(selectedSources, selectedDestinations.map(d => d.name));
+        onConfirm(selectedSources, selectedDestinations);
         setError(null);
     };
 
@@ -165,32 +213,35 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                         <Text variant="body-2" color="secondary">Нет доступных источников</Text>
                                     </div>
                                 ) : (
-                                    availableSources.map(source => (
-                                        <div key={source.name} style={{
-                                            padding: '12px 16px',
-                                            borderBottom: '1px solid var(--g-color-line-generic)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between'
-                                        }}>
-                                            <div>
-                                                <Text variant="body-2">{source.name}</Text>
-                                                <Text variant="caption-1" color="secondary">
-                                                    {source.ipAddress}:{source.tcpPort}
-                                                </Text>
+                                    availableSources.map(source => {
+                                        const connection = sourceConnections.find(sc => sc.source.name === source.name);
+                                        return (
+                                            <div key={source.name} style={{
+                                                padding: '12px 16px',
+                                                borderBottom: '1px solid var(--g-color-line-generic)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between'
+                                            }}>
+                                                <div>
+                                                    <Text variant="body-2">{source.name}</Text>
+                                                    <Text variant="caption-1" color="secondary">
+                                                        {source.ipAddress}:{source.tcpPort}
+                                                    </Text>
+                                                </div>
+                                                <Select
+                                                    value={connection?.enabled ? ['enabled'] : ['disabled']}
+                                                    options={[
+                                                        { content: 'Подключить', value: 'enabled' },
+                                                        { content: 'Отключить', value: 'disabled' }
+                                                    ]}
+                                                    onUpdate={(values) => handleSourceToggle(source.name, (values as string[])[0] === 'enabled')}
+                                                    size="s"
+                                                    multiple={false}
+                                                />
                                             </div>
-                                            <Select
-                                                value={sourceConnections.find(sc => sc.source.name === source.name)?.enabled ? ['enabled'] : ['disabled']}
-                                                options={[
-                                                    { content: 'Подключить', value: 'enabled' },
-                                                    { content: 'Отключить', value: 'disabled' }
-                                                ]}
-                                                onUpdate={(values) => handleSourceToggle(source.name, (values as string[])[0] === 'enabled')}
-                                                size="s"
-                                                multiple={false}
-                                            />
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
@@ -221,30 +272,33 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                         <Text variant="body-2" color="secondary">Нет доступных приёмников</Text>
                                     </div>
                                 ) : (
-                                    availableDestinations.map(destination => (
-                                        <div key={destination.name} style={{
-                                            padding: '12px 16px',
-                                            borderBottom: '1px solid var(--g-color-line-generic)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between'
-                                        }}>
-                                            <div>
-                                                <Text variant="body-2">{destination.name}</Text>
-                                                <Text variant="caption-1" color="secondary">{destination.url}</Text>
+                                    availableDestinations.map(destination => {
+                                        const connection = destinationConnections.find(dc => dc.destination.name === destination.name);
+                                        return (
+                                            <div key={destination.name} style={{
+                                                padding: '12px 16px',
+                                                borderBottom: '1px solid var(--g-color-line-generic)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between'
+                                            }}>
+                                                <div>
+                                                    <Text variant="body-2">{destination.name}</Text>
+                                                    <Text variant="caption-1" color="secondary">{destination.url}</Text>
+                                                </div>
+                                                <Select
+                                                    value={connection?.enabled ? ['enabled'] : ['disabled']}
+                                                    options={[
+                                                        { content: 'Подключить', value: 'enabled' },
+                                                        { content: 'Отключить', value: 'disabled' }
+                                                    ]}
+                                                    onUpdate={(values) => handleDestinationToggle(destination.name, (values as string[])[0] === 'enabled')}
+                                                    size="s"
+                                                    multiple={false}
+                                                />
                                             </div>
-                                            <Select
-                                                value={destinationConnections.find(dc => dc.destination.name === destination.name)?.enabled ? ['enabled'] : ['disabled']}
-                                                options={[
-                                                    { content: 'Подключить', value: 'enabled' },
-                                                    { content: 'Отключить', value: 'disabled' }
-                                                ]}
-                                                onUpdate={(values) => handleDestinationToggle(destination.name, (values as string[])[0] === 'enabled')}
-                                                size="s"
-                                                multiple={false}
-                                            />
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
