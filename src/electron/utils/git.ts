@@ -1,4 +1,6 @@
 import {SimpleGit, simpleGit} from 'simple-git';
+import fs from 'fs/promises';
+import path from 'path';
 
 export function getGitInstance(path: string): SimpleGit {
     return simpleGit(path);
@@ -7,6 +9,12 @@ export function getGitInstance(path: string): SimpleGit {
 export async function initGitRepository(path: string): Promise<void> {
     const git = getGitInstance(path);
     await git.init();
+
+    const gitignorePath = path + '\\.gitignore';
+    const gitignoreContent = '/generated\n';
+    await fs.writeFile(gitignorePath, gitignoreContent, 'utf-8');
+
+    await git.add('.gitignore');
 }
 
 export async function addGitFiles(path: string, files: string[] = ['.']): Promise<void> {

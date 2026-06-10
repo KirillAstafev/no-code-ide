@@ -104,6 +104,11 @@ export const createProject = async (
             'utf-8'
         );
 
+        // Создаем файл .gitignore с папкой /generated
+        const gitignorePath = path.join(projectDir, '.gitignore');
+        const gitignoreContent = '/generated\n';
+        await fs.writeFile(gitignorePath, gitignoreContent, 'utf-8');
+
         const modulesDir = path.join(projectDir, 'modules');
         await fs.mkdir(modulesDir, { recursive: true });
 
