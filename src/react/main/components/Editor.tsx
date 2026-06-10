@@ -7,6 +7,16 @@ import {SOURCE_BLOCK, SourceBlock} from "./SourceBlock.ts";
 import {DESTINATION_BLOCK, DestinationBlock} from "./DestinationBlock.ts";
 import {MODULE_BLOCK, ModuleBlock} from "./ModuleBlock.ts";
 import {ModuleConnectionsModal} from "./ModuleConnectionsModal.tsx";
+import {DATA_SOURCE_COMMANDS} from "./constants/dataSourceCommands";
+
+interface SchemaEdge {
+    id: string;
+    sourceBlockId: string;
+    targetBlockId: string;
+    label?: string;
+    style?: 'solid' | 'dashed';
+    arrowhead?: 'none' | 'arrow' | 'dot';
+}
 
 function Editor() {
     const config: TGraphConfig = {
@@ -18,7 +28,8 @@ function Editor() {
             },
             canCreateNewConnections: true,
             canChangeBlockGeometry: ECanChangeBlockGeometry.ALL,
-            useBlocksAnchors: false
+            useBlocksAnchors: false,
+            showConnectionLabels: true
         }
     };
     const {graph, setEntities, start} = useGraph(config);
@@ -37,7 +48,7 @@ function Editor() {
         const connections: TConnection[] = [];
 
         schema.nodes?.forEach(node => {
-            const block: TBlock<any> = {
+            const block: TBlock = {
                 id: node.id,
                 is: `${node.type}`,
                 x: node.x || 0,
@@ -58,7 +69,8 @@ function Editor() {
             const connection: TConnection = {
                 id: edge.id,
                 sourceBlockId: `${edge.sourceBlockId}`,
-                targetBlockId: `${edge.targetBlockId}`
+                targetBlockId: `${edge.targetBlockId}`,
+                label: edge.label ?? "",
             };
 
             connections.push(connection);
@@ -106,24 +118,35 @@ function Editor() {
     );
 
     const handleModalConfirm = useCallback(
-        (sourceIds: string[], destinationIds: string[]) => {
+        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationIds: string[]) => {
             if (!currentModule || !project) return;
 
             const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
             if (moduleIndex === -1) return;
 
             // Фильтруем только новые источники и приёмники
-            const currentSourceNames = currentModule.sources?.map(s => s.name) || [];
+            // const currentSourceNames = currentModule.sources?.map(s => s.name) || [];
             const currentDestinationNames = currentModule.destinations?.map(d => d.name) || [];
             
-            const newSourceIds = sourceIds.filter(id => !currentSourceNames.includes(id));
+            // const newSourceConnections = sourceConnections.filter(sc => !currentSourceNames.includes(sc.sourceName));
             const newDestinationIds = destinationIds.filter(id => !currentDestinationNames.includes(id));
 
+            // const newSourceNames = sourceConnections.map(sc => sc.sourceName);
             const newModule = {
                 ...currentModule,
-                sources: sourceIds.map(sourceName =>
-                    project.sources?.find(s => s.name === sourceName)
-                ).filter((source): source is DataSource => !!source),
+                sources: sourceConnections.map(sc => {
+                    const source = project.sources?.find(s => s.name === sc.sourceName);
+                    if (source) {
+                        const command = DATA_SOURCE_COMMANDS.find(c => c.name === sc.commandName) || DATA_SOURCE_COMMANDS[0];
+                        const updatedSource: DataSource = {
+                            ...source,
+                            command: command,
+                            commandParams: sc.commandParams
+                        };
+                        return updatedSource;
+                    }
+                    return null as any;
+                }).filter((source): source is DataSource => source !== null),
                 destinations: destinationIds.map(destinationName =>
                     project.destinations?.find(d => d.name === destinationName)
                 ).filter((destination): destination is DataDestination => !!destination),
@@ -132,18 +155,28 @@ function Editor() {
             const newModules = [...project.modules];
             newModules[moduleIndex] = newModule;
 
-            const newConnections: any[] = [];
+            const newConnections: SchemaEdge[] = [];
             const moduleBlockId = `module-${currentModule.name}`;
 
-            // Добавляем только новые связи
-            newSourceIds.forEach(sourceName => {
-                const sourceNode = project.schema.nodes?.find(n => n.data.name === sourceName);
+            // Создаем карту соединений для быстрого поиска
+            // const sourceConnMap = new Map(sourceConnections.map(sc => [sc.sourceName, sc]));
+            
+            // Добавляем новые связи и обновляем существующие
+            sourceConnections.forEach(sc => {
+                const sourceNode = project.schema.nodes?.find(n => n.data.name === sc.sourceName);
                 if (sourceNode) {
                     const connectionId = `${sourceNode.id}_${moduleBlockId}`;
+                    
+                    // Проверяем, существует ли уже соединение
+                    const existingEdge = project.schema.edges?.find(e => e.id === connectionId);
+                    
                     newConnections.push({
                         id: connectionId,
                         sourceBlockId: sourceNode.id,
                         targetBlockId: moduleBlockId,
+                        label: sc.commandName,
+                        style: existingEdge?.style,
+                        arrowhead: existingEdge?.arrowhead || 'arrow',
                     });
                 }
             });
@@ -186,7 +219,7 @@ function Editor() {
         <>
             <GraphCanvas
                 graph={graph}
-                renderBlock={(_graphObject, _block) => {
+                renderBlock={() => {
                     return (
                         <div>
                         </div>

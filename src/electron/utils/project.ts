@@ -27,11 +27,12 @@ function generateSchemaFromProject(project: Project): Schema {
                 caption: `${source.ipAddress}:${source.tcpPort}`,
                 data: source,
             });
+            // Сохраняем название команды в метке соединения
             edges.push({
                 id: `edge-${sourceId}-to-${moduleId}`,
                 sourceBlockId: sourceId,
                 targetBlockId: moduleId,
-                label: 'input',
+                label: source.command?.name || 'command',
                 arrowhead: 'arrow',
             });
         });

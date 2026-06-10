@@ -6,10 +6,16 @@ import { DATA_SOURCE_COMMANDS } from './constants/dataSourceCommands';
 interface ModuleConnectionsModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (sourceIds: string[], destinationIds: string[]) => void;
+    onConfirm: (sourceConnections: SourceConnectionInfo[], destinationIds: string[]) => void;
     module: Module;
     availableSources: DataSource[];
     availableDestinations: DataDestination[];
+}
+
+interface SourceConnectionInfo {
+    sourceName: string;
+    commandName: string;
+    commandParams: Record<string, string | number | boolean>;
 }
 
 interface SourceConnection {
@@ -142,15 +148,21 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
     };
 
     const handleConfirm = () => {
-        const selectedSources = sourceConnections.filter(sc => sc.enabled).map(sc => sc.source.name);
+        const selectedSourceConnections = sourceConnections
+            .filter(sc => sc.enabled)
+            .map(sc => ({
+                sourceName: sc.source.name,
+                commandName: sc.command.name,
+                commandParams: sc.commandParams
+            }));
         const selectedDestinations = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination.name);
 
-        if (selectedSources.length === 0 && selectedDestinations.length === 0) {
+        if (selectedSourceConnections.length === 0 && selectedDestinations.length === 0) {
             setError('Модуль должен быть связан хотя бы с одним источником или приёмником');
             return;
         }
 
-        onConfirm(selectedSources, selectedDestinations);
+        onConfirm(selectedSourceConnections, selectedDestinations);
         setError(null);
     };
 
