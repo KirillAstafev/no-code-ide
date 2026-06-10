@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import unzipper from 'unzipper';
 import {spawn} from "node:child_process";
+import {generateJavaProject, generateJavaFiles, findMainClassName} from './javaGenerator.js';
 
 function generateSchemaFromProject(project: Project): Schema {
     const nodes: SchemaNode[] = [];
@@ -112,7 +113,7 @@ export const createProject = async (
         const modulesDir = path.join(projectDir, 'modules');
         await fs.mkdir(modulesDir, { recursive: true });
 
-        for (const module of project.modules) {
+        const modulePromises = project.modules.map(async (module) => {
             const moduleDir = path.join(modulesDir, module.name);
             await fs.mkdir(moduleDir, { recursive: true });
 
@@ -128,7 +129,9 @@ export const createProject = async (
                 JSON.stringify(moduleData, null, 2),
                 'utf-8'
             );
-        }
+        });
+
+        await Promise.all(modulePromises);
 
         return { success: true, path: projectDir };
     } catch (error) {
@@ -231,7 +234,7 @@ export const saveProject = async (
         );
 
         const modulesDir = path.join(projectDir, 'modules');
-        for (const module of project.modules) {
+        const modulesPromises = project.modules.map(async (module) => {
             const moduleDir = path.join(modulesDir, module.name);
             await fs.mkdir(moduleDir, { recursive: true });
             await fs.writeFile(
@@ -239,7 +242,9 @@ export const saveProject = async (
                 JSON.stringify(module, null, 2),
                 'utf-8'
             );
-        }
+        });
+
+        await Promise.all(modulesPromises);
 
         return { success: true, path: projectDir };
     } catch (error) {
@@ -299,7 +304,21 @@ export const buildProject = async (
         const zip = await unzipper.Open.buffer(buffer);
         await zip.extract({ path: generatedDir });
 
-        // Отправляем сообщение о прогрессе - скачивание завершено
+        const generatedItems = await fs.readdir(generatedDir);
+        const templateFolder = generatedItems.find(item => 
+            fs.stat(path.join(generatedDir, item)).then(s => s.isDirectory()).catch(() => false)
+        );
+        
+        if (!templateFolder) {
+            throw new Error('Не найдена папка с распакованным шаблоном Spring Boot');
+        }
+
+        const templatePath = path.join(generatedDir, templateFolder);
+
+        const mainClassName = await findMainClassName(templatePath);
+        const generatedProjectInfo = generateJavaProject(project, mainClassName);
+        await generateJavaFiles(project, generatedProjectInfo, templatePath);
+
         const window = BrowserWindow.fromWebContents(event.sender);
         if (window) {
             window.webContents.send('build-progress', {
@@ -308,91 +327,68 @@ export const buildProject = async (
             });
         }
 
-        const generatedItems = await fs.readdir(generatedDir);
-        const templateFolder = generatedItems.find(item => 
-            fs.stat(path.join(generatedDir, item)).then(s => s.isDirectory()).catch(() => false)
-        );
-        
-        if (templateFolder) {
-            const templatePath = path.join(generatedDir, templateFolder);
-
-            // Отправляем сообщение о прогрессе - начало сборки
-            const window = BrowserWindow.fromWebContents(event.sender);
-            if (window) {
-                window.webContents.send('build-progress', {
-                    type: 'stage',
-                    payload: { stage: 'building' }
-                });
-            }
-
-            const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
-            
-            console.log(`Выполнение Gradle сборки в папке: ${templatePath}`);
-            
-            await new Promise((resolve, reject) => {
-                const gradleProcess = spawn(gradlewCmd, ['build'], {
-                    cwd: templatePath,
-                    stdio: 'pipe',
-                    shell: true,
-                    env: { ...process.env, NO_COLOR: '1' }
-                });
-                
-                gradleProcess.stdout.on('data', (data) => {
-                    console.log(data.toString());
-                    // Обновляем прогресс на основе вывода (примерная логика)
-                    const output = data.toString();
-                    if (output.includes('BUILD')) {
-                        const window = BrowserWindow.fromWebContents(event.sender);
-                        if (window) {
-                            window.webContents.send('build-progress', {
-                                type: 'progress',
-                                payload: { progress: 70 }
-                            });
-                        }
-                    }
-                });
-                
-                gradleProcess.stderr.on('data', (data) => {
-                    console.error(data.toString());
-                });
-                
-                gradleProcess.on('close', (code: number) => {
-                    if (code === 0) {
-                        console.log('Gradle сборка завершена успешно');
-                        // Отправляем сообщение о завершении
-                        const finishWindow = BrowserWindow.fromWebContents(event.sender);
-                        if (finishWindow) {
-                            finishWindow.webContents.send('build-progress', {
-                                type: 'progress',
-                                payload: { progress: 100 }
-                            });
-                            finishWindow.webContents.send('build-progress', {
-                                type: 'finish'
-                            });
-                        }
-                        resolve(true);
-                    } else {
-                        reject(new Error(`Gradle сборка завершилась с кодом ${code}`));
-                    }
-                });
-                
-                gradleProcess.on('error', (error: Error) => {
-                    reject(new Error(`Ошибка запуска Gradle: ${error.message}`));
-                });
+        if (window) {
+            window.webContents.send('build-progress', {
+                type: 'stage',
+                payload: { stage: 'building' }
             });
-        } else {
-            // Если шаблон не найден, отправляем прогресс 100% и finish
-            const window = BrowserWindow.fromWebContents(event.sender);
-            if (window) {
-                window.webContents.send('build-progress', {
-                    type: 'progress',
-                    payload: { progress: 100 }
-                });
-                window.webContents.send('build-progress', {
-                    type: 'finish'
-                });
-            }
         }
+
+        const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+        
+        console.log(`Выполнение Gradle сборки в папке: ${templatePath}`);
+        
+        await new Promise((resolve, reject) => {
+            const gradleProcess = spawn(gradlewCmd, ['build'], {
+                cwd: templatePath,
+                stdio: 'pipe',
+                shell: true,
+                env: { ...process.env, NO_COLOR: '1' }
+            });
+            
+            gradleProcess.stdout.on('data', (data) => {
+                console.log(data.toString());
+                // Обновляем прогресс на основе вывода (примерная логика)
+                const output = data.toString();
+                if (output.includes('BUILD')) {
+                    const window = BrowserWindow.fromWebContents(event.sender);
+                    if (window) {
+                        window.webContents.send('build-progress', {
+                            type: 'progress',
+                            payload: { progress: 70 }
+                        });
+                    }
+                }
+            });
+            
+            gradleProcess.stderr.on('data', (data) => {
+                console.error(data.toString());
+            });
+            
+            gradleProcess.on('close', (code: number) => {
+                if (code === 0) {
+                    console.log('Gradle сборка завершена успешно');
+                    // Отправляем сообщение о завершении
+                    const finishWindow = BrowserWindow.fromWebContents(event.sender);
+                    if (finishWindow) {
+                        finishWindow.webContents.send('build-progress', {
+                            type: 'progress',
+                            payload: { progress: 100 }
+                        });
+                        finishWindow.webContents.send('build-progress', {
+                            type: 'finish'
+                        });
+                    }
+                    resolve(true);
+                } else {
+                    reject(new Error(`Gradle сборка завершилась с кодом ${code}`));
+                }
+            });
+            
+            gradleProcess.on('error', (error: Error) => {
+                reject(new Error(`Ошибка запуска Gradle: ${error.message}`));
+            });
+        });
 
         return { success: true, path: generatedDir };
     } catch (error) {
