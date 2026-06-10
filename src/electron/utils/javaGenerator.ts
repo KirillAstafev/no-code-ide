@@ -30,6 +30,12 @@ interface DataDestination {
     name: string;
     url: string;
     dependency: ExternalDependency;
+    targetType?: string;
+    databaseName?: string;
+    schemaName?: string;
+    tableName?: string;
+    columnName?: string;
+    topic?: string;
 }
 
 interface ExternalDependency {
@@ -99,6 +105,12 @@ interface DestinationConnectionInfo {
     destinationName: string;
     destinationUrl: string;
     className: string;
+    targetType: string;
+    databaseName?: string;
+    schemaName?: string;
+    tableName?: string;
+    columnName?: string;
+    topic?: string;
 }
 
 interface SourceConnectionInfo {
@@ -188,6 +200,12 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
                 destinationName: normalizeIdentifier(destination.name),
                 destinationUrl: destination.url,
                 className: generateJavaClassNameFromId(destinationId) + 'Client',
+                targetType: destination.targetType || '',
+                databaseName: destination.databaseName,
+                schemaName: destination.schemaName,
+                tableName: destination.tableName,
+                columnName: destination.columnName,
+                topic: destination.topic,
             });
         });
 
@@ -210,6 +228,12 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
             destinationName: normalizeIdentifier(d.name),
             destinationUrl: d.url,
             className: generateJavaClassNameFromId(`Destination${i + 1}`) + 'Client',
+            targetType: d.targetType || '',
+            databaseName: d.databaseName,
+            schemaName: d.schemaName,
+            tableName: d.tableName,
+            columnName: d.columnName,
+            topic: d.topic,
         })),
     };
 }
@@ -276,10 +300,12 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
     });
 
     module.destinationConnections.forEach(destination => {
+        const methodName = 'sendData';
+        const dataVar = '"Данные из модуля"';
         methods += `
     public void sendDataTo${generateJavaClassNameFromId(destination.id)}() {
-        System.out.println("Отправка данных в приёмник ${normalizeIdentifier(destination.destinationName)}");
-        ${normalizeIdentifier(destination.destinationName.toLowerCase())}Client.sendData("Данные из модуля ${normalizeIdentifier(module.name)}");
+        System.out.println("Отправка данных в приёмник ${destination.destinationName} (" + "${destination.targetType || 'UNKNOWN'}" + ")");
+        ${normalizeIdentifier(destination.destinationName.toLowerCase())}Client.${methodName}(${dataVar});
     }
 `;
     });
@@ -299,20 +325,64 @@ ${methods}}
 function generateDestinationClass(destination: DestinationConnectionInfo, basePackage: string): string {
     const className = destination.className;
     const packageDeclaration = `package ${basePackage};\n`;
+    const targetType = destination.targetType || 'UNKNOWN';
+
+    let extraFields = '';
+    let extraMethods = '';
+
+    if (targetType === 'POSTGRESQL') {
+        const databaseName = destination.databaseName || 'default_db';
+        const schemaName = destination.schemaName || 'public';
+        const tableName = destination.tableName || 'default_table';
+        const columnName = destination.columnName || 'data';
+
+        extraFields = `    private static final String DATABASE_NAME = "${databaseName}";
+    private static final String SCHEMA_NAME = "${schemaName}";
+    private static final String TABLE_NAME = "${tableName}";
+    private static final String COLUMN_NAME = "${columnName}";
+
+    private static final String URL = "${destination.destinationUrl}";
+`;
+
+        extraMethods = `
+    public void sendBatchData(java.util.List<String> dataList) {
+        System.out.println("Отправка пакета данных в PostgreSQL БД: " + DATABASE_NAME + ", схема: " + SCHEMA_NAME + ", таблица: " + TABLE_NAME);
+        dataList.forEach(data -> System.out.println("Данные в столбце " + COLUMN_NAME + ": " + data));
+    }
+`;
+    } else if (targetType === 'KAFKA') {
+        const topic = destination.topic || 'default-topic';
+
+        extraFields = `    private static final String TOPIC = "${topic}";
+    private static final String BOOTSTRAP_SERVERS = "${destination.destinationUrl}";
+`;
+
+        extraMethods = `
+    public void sendMessage(String message) {
+        System.out.println("Отправка сообщения в Kafka topic: " + TOPIC + " на сервер: " + BOOTSTRAP_SERVERS);
+        System.out.println("Сообщение: " + message);
+    }
+
+    public void sendBatchMessages(java.util.List<String> messages) {
+        System.out.println("Отправка пакета сообщений в Kafka topic: " + TOPIC);
+        messages.forEach(msg -> System.out.println("Сообщение: " + msg));
+    }
+`;
+    } else {
+        extraFields = `    private static final String URL = "${destination.destinationUrl}";
+`;
+    }
 
     return `${packageDeclaration}
 import org.springframework.stereotype.Component;
 
 @Component
 public class ${className} {
-    
-    private static final String DESTINATION_NAME = "${destination.destinationName}";
-    private static final String URL = "${destination.destinationUrl}";
-    
+${extraFields}    
     public void sendData(String data) {
-        System.out.println("Отправка данных в " + DESTINATION_NAME + " по URL: " + URL);
+        System.out.println("Отправка данных в " + "${destination.destinationName}" + " (" + "${targetType}" + ")");
         System.out.println("Данные: " + data);
     }
-}
+${extraMethods}}
 `;
 }

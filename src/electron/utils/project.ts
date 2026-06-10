@@ -44,7 +44,7 @@ function generateSchemaFromProject(project: Project): Schema {
                 id: destId,
                 type: 'destination',
                 label: destination.name,
-                caption: 'Приёмник',
+                caption: `Приёмник: ${destination.targetType || 'UNKNOWN'}`,
                 data: destination,
             });
             edges.push({

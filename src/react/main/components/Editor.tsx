@@ -35,6 +35,7 @@ function Editor() {
     const {graph, setEntities, start} = useGraph(config);
     const {state, updateProject} = useProject();
     const {project, isLoaded} = state;
+    const {selectElement} = useSelection();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentModule, setCurrentModule] = useState<Module | null>(null);
 
@@ -79,8 +80,6 @@ function Editor() {
         setEntities({blocks, connections});
     }, [setEntities, project, isLoaded]);
 
-    const {selectElement} = useSelection();
-
     const onBlockSelectionChange = useCallback(
         (detail: any) => {
             const blockId = detail.list[0];
@@ -118,20 +117,12 @@ function Editor() {
     );
 
     const handleModalConfirm = useCallback(
-        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationIds: string[]) => {
+        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationConnections: { destinationName: string; settings: { targetType: string; databaseName?: string; schemaName?: string; tableName?: string; columnName?: string; topic?: string } }[]) => {
             if (!currentModule || !project) return;
 
             const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
             if (moduleIndex === -1) return;
 
-            // Фильтруем только новые источники и приёмники
-            // const currentSourceNames = currentModule.sources?.map(s => s.name) || [];
-            const currentDestinationNames = currentModule.destinations?.map(d => d.name) || [];
-            
-            // const newSourceConnections = sourceConnections.filter(sc => !currentSourceNames.includes(sc.sourceName));
-            const newDestinationIds = destinationIds.filter(id => !currentDestinationNames.includes(id));
-
-            // const newSourceNames = sourceConnections.map(sc => sc.sourceName);
             const newModule = {
                 ...currentModule,
                 sources: sourceConnections.map(sc => {
@@ -147,57 +138,78 @@ function Editor() {
                     }
                     return null as any;
                 }).filter((source): source is DataSource => source !== null),
-                destinations: destinationIds.map(destinationName =>
-                    project.destinations?.find(d => d.name === destinationName)
-                ).filter((destination): destination is DataDestination => !!destination),
+                destinations: destinationConnections.map(dc => {
+                    const destination = project.destinations?.find(d => d.name === dc.destinationName);
+                    if (destination) {
+                        return {
+                            ...destination,
+                            targetType: dc.settings.targetType,
+                            databaseName: dc.settings.databaseName,
+                            schemaName: dc.settings.schemaName,
+                            tableName: dc.settings.tableName,
+                            columnName: dc.settings.columnName,
+                            topic: dc.settings.topic,
+                        };
+                    }
+                    return null as any;
+                }).filter((destination): destination is DataDestination => destination !== null),
             };
 
             const newModules = [...project.modules];
             newModules[moduleIndex] = newModule;
 
+            const newDestinations = project.destinations?.map(d => {
+                const updatedDestination = newModule.destinations.find(md => md.name === d.name);
+                if (updatedDestination) {
+                    return updatedDestination;
+                }
+                return d;
+            });
+
+            const existingEdges = project.schema.edges || [];
             const newConnections: SchemaEdge[] = [];
             const moduleBlockId = `module-${currentModule.name}`;
 
-            // Создаем карту соединений для быстрого поиска
-            // const sourceConnMap = new Map(sourceConnections.map(sc => [sc.sourceName, sc]));
-            
-            // Добавляем новые связи и обновляем существующие
+            // Удаляем старые связи для модуля
+            const filteredEdges = existingEdges.filter((edge: SchemaEdge) => 
+                edge.sourceBlockId !== moduleBlockId && edge.targetBlockId !== moduleBlockId
+            );
+
+            // Создаем новые связи для источников
             sourceConnections.forEach(sc => {
                 const sourceNode = project.schema.nodes?.find(n => n.data.name === sc.sourceName);
                 if (sourceNode) {
                     const connectionId = `${sourceNode.id}_${moduleBlockId}`;
-                    
-                    // Проверяем, существует ли уже соединение
-                    const existingEdge = project.schema.edges?.find(e => e.id === connectionId);
-                    
                     newConnections.push({
                         id: connectionId,
                         sourceBlockId: sourceNode.id,
                         targetBlockId: moduleBlockId,
                         label: sc.commandName,
-                        style: existingEdge?.style,
-                        arrowhead: existingEdge?.arrowhead || 'arrow',
+                        arrowhead: 'arrow',
                     });
                 }
             });
 
-            newDestinationIds.forEach(destinationName => {
-                const destinationNode = project.schema.nodes?.find(n => n.data.name === destinationName);
+            // Создаем новые связи для приёмников
+            destinationConnections.forEach(dc => {
+                const destinationNode = project.schema.nodes?.find(n => n.data.name === dc.destinationName);
                 if (destinationNode) {
                     const connectionId = `${moduleBlockId}_${destinationNode.id}`;
                     newConnections.push({
                         id: connectionId,
                         sourceBlockId: moduleBlockId,
                         targetBlockId: destinationNode.id,
+                        label: 'output',
+                        arrowhead: 'arrow',
                     });
                 }
             });
 
-            const existingEdges = project.schema.edges || [];
             const existingNodes = project.schema.nodes || [];
             
             updateProject({
                 modules: newModules,
+                destinations: newDestinations,
                 schema: {
                     ...project.schema,
                     nodes: existingNodes.map(node =>
@@ -205,7 +217,7 @@ function Editor() {
                             ? { ...node, data: newModule }
                             : node
                     ),
-                    edges: [...existingEdges, ...newConnections],
+                    edges: [...filteredEdges, ...newConnections],
                 },
             });
 

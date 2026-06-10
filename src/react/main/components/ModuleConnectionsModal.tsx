@@ -1,12 +1,13 @@
 import React from 'react';
 import { Modal, Text, Button, Alert, Select } from '@gravity-ui/uikit';
 import { SourceCommandConfig } from './SourceCommandConfig';
+import { DestinationConfig } from './DestinationConfig';
 import { DATA_SOURCE_COMMANDS } from './constants/dataSourceCommands';
 
 interface ModuleConnectionsModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (sourceConnections: SourceConnectionInfo[], destinationIds: string[]) => void;
+    onConfirm: (sourceConnections: SourceConnectionInfo[], destinationConnections: SelectedDestination[]) => void;
     module: Module;
     availableSources: DataSource[];
     availableDestinations: DataDestination[];
@@ -28,6 +29,21 @@ interface SourceConnection {
 interface DestinationConnection {
     destination: DataDestination;
     enabled: boolean;
+    settings: DestinationSettings;
+}
+
+interface DestinationSettings {
+    targetType: string;
+    databaseName?: string;
+    schemaName?: string;
+    tableName?: string;
+    columnName?: string;
+    topic?: string;
+}
+
+interface SelectedDestination {
+    destinationName: string;
+    settings: DestinationSettings;
 }
 
 // Конфигурация значений по умолчанию для разных типов команд
@@ -91,7 +107,15 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
             setDestinationConnections(
                 availableDestinations.map(destination => ({
                     destination,
-                    enabled: module.destinations?.some(d => d.name === destination.name) || false
+                    enabled: module.destinations?.some(d => d.name === destination.name) || false,
+                    settings: {
+                        targetType: destination.targetType || '',
+                        databaseName: destination.databaseName,
+                        schemaName: destination.schemaName,
+                        tableName: destination.tableName,
+                        columnName: destination.columnName,
+                        topic: destination.topic,
+                    }
                 }))
             );
         }
@@ -147,6 +171,55 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
         );
     };
 
+    const [editingDestination, setEditingDestination] = React.useState<DataDestination | null>(null);
+
+    const handleDestinationClick = (destination: DataDestination) => {
+        const existingConnection = destinationConnections.find(dc => dc.destination.name === destination.name);
+        if (existingConnection) {
+            setEditingDestination({
+                ...destination,
+                targetType: existingConnection.settings.targetType,
+                databaseName: existingConnection.settings.databaseName,
+                schemaName: existingConnection.settings.schemaName,
+                tableName: existingConnection.settings.tableName,
+                columnName: existingConnection.settings.columnName,
+                topic: existingConnection.settings.topic,
+            });
+        } else {
+            setEditingDestination({
+                ...destination,
+                targetType: '',
+                databaseName: undefined,
+                schemaName: undefined,
+                tableName: undefined,
+                columnName: undefined,
+                topic: undefined,
+            });
+        }
+    };
+
+    const handleDestinationConfigConfirm = () => {
+        if (editingDestination) {
+            const destinationName = editingDestination.name;
+            const settings: DestinationSettings = {
+                targetType: editingDestination.targetType || '',
+                databaseName: editingDestination.databaseName,
+                schemaName: editingDestination.schemaName,
+                tableName: editingDestination.tableName,
+                columnName: editingDestination.columnName,
+                topic: editingDestination.topic,
+            };
+            setDestinationConnections(prev =>
+                prev.map(dc => dc.destination.name === destinationName ? { ...dc, settings } : dc)
+            );
+            setEditingDestination(null);
+        }
+    };
+
+    const handleDestinationConfigCancel = () => {
+        setEditingDestination(null);
+    };
+
     const handleConfirm = () => {
         const selectedSourceConnections = sourceConnections
             .filter(sc => sc.enabled)
@@ -155,7 +228,12 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                 commandName: sc.command.name,
                 commandParams: sc.commandParams
             }));
-        const selectedDestinations = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination.name);
+        const selectedDestinations = destinationConnections
+            .filter(dc => dc.enabled)
+            .map(dc => ({
+                destinationName: dc.destination.name,
+                settings: dc.settings
+            }));
 
         if (selectedSourceConnections.length === 0 && selectedDestinations.length === 0) {
             setError('Модуль должен быть связан хотя бы с одним источником или приёмником');
@@ -171,12 +249,24 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
         return selected.length === 0 ? (
             <Text variant="body-2" color="secondary">Нет выбранных приёмников</Text>
         ) : (
-            selected.map(destination => (
-                <div key={destination.name} style={{ padding: '8px', borderBottom: '1px solid var(--g-color-line-generic)' }}>
-                    <Text variant="body-2">{destination.name}</Text>
-                    <Text variant="caption-1" color="secondary">{destination.url}</Text>
-                </div>
-            ))
+            selected.map(destination => {
+                const connection = destinationConnections.find(dc => dc.destination.name === destination.name);
+                const settings = connection?.settings || { targetType: '' };
+                const targetType = settings.targetType || 'UNKNOWN';
+                return (
+                    <div key={destination.name} style={{ padding: '8px', borderBottom: '1px solid var(--g-color-line-generic)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text variant="body-2">{destination.name}</Text>
+                            <Button size="s" onClick={() => handleDestinationClick(destination)}>
+                                Настроить
+                            </Button>
+                        </div>
+                        <Text variant="caption-1" color="secondary">
+                            {destination.url} ({targetType})
+                        </Text>
+                    </div>
+                );
+            })
         );
     };
 
@@ -363,6 +453,59 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                         </div>
                     </div>
                 </div>
+
+                <Modal
+                    open={!!editingDestination}
+                    onClose={handleDestinationConfigCancel}
+                    aria-label="Настройка приёмника"
+                >
+                    <div style={{ padding: '20px' }}>
+                        {editingDestination && (
+                            <>
+                                <div style={{ marginBottom: '20px' }}>
+                                    <Text variant="header-2">Настройка приёмника "{editingDestination.name}"</Text>
+                                </div>
+                                <DestinationConfig
+                                    destinationName={editingDestination.name}
+                                    targetType={editingDestination.targetType || ''}
+                                    databaseName={editingDestination.databaseName}
+                                    schemaName={editingDestination.schemaName}
+                                    tableName={editingDestination.tableName}
+                                    columnName={editingDestination.columnName}
+                                    topic={editingDestination.topic}
+                                    onUpdate={(settings) => setEditingDestination(prev => prev ? {
+                                        ...prev,
+                                        targetType: settings.targetType,
+                                        databaseName: settings.databaseName,
+                                        schemaName: settings.schemaName,
+                                        tableName: settings.tableName,
+                                        columnName: settings.columnName,
+                                        topic: settings.topic,
+                                    } : null)}
+                                />
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'flex-end',
+                                        gap: '10px',
+                                        marginTop: '20px',
+                                    }}
+                                >
+                                    <Button view="flat" size="m" onClick={handleDestinationConfigCancel}>
+                                        Отмена
+                                    </Button>
+                                    <Button
+                                        view="action"
+                                        size="m"
+                                        onClick={handleDestinationConfigConfirm}
+                                    >
+                                        Сохранить
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </Modal>
 
                 {error && (
                     <Alert

@@ -70,6 +70,12 @@ interface DataDestination {
     name: string;
     url: string;
     dependency: ExternalDependency;
+    targetType?: string;
+    databaseName?: string;
+    schemaName?: string;
+    tableName?: string;
+    columnName?: string;
+    topic?: string;
 }
 
 interface ExternalDependency {
