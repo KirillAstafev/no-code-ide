@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import { useState, useEffect } from 'react';
 import {ChevronDown} from '@gravity-ui/icons';
 import {Icon, Text} from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
@@ -230,6 +230,14 @@ function ElementPanel() {
             setIsAddModuleModalOpen(true);
         }
     };
+
+    useEffect(() => {
+        if (!isLoaded) {
+            setIsAddModuleModalOpen(false);
+            setIsAddDestinationModalOpen(false);
+            setIsAddSourceModalOpen(false);
+        }
+    }, [isLoaded]);
 
     return (
         <div style={{flex: 2, overflow: 'auto', background: 'var(--g-color-base-background)'}}>

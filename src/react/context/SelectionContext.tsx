@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 interface SelectionContextType {
     selectedElement: SchemaNode | null;
@@ -9,6 +9,10 @@ const SelectionContext = createContext<SelectionContextType | undefined>(undefin
 
 export const SelectionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [selectedElement, selectElement] = useState<SchemaNode | null>(null);
+
+    useEffect(() => {
+        selectElement(null);
+    }, []);
 
     return (
         <SelectionContext.Provider value={{ selectedElement, selectElement }}>

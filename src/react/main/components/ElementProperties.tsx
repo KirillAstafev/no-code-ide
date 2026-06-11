@@ -1,8 +1,10 @@
 import { Text } from '@gravity-ui/uikit';
 import {useSelection} from "../../context/SelectionContext.tsx";
+import {useProject} from "../../context/ProjectContext.tsx";
 import { SourceProperties } from "./SourceProperties";
 import { DestinationProperties } from "./DestinationProperties";
 import { ModuleProperties } from "./ModuleProperties";
+import { useEffect } from 'react';
 
 
 interface ElementPropertiesProps {
@@ -10,7 +12,16 @@ interface ElementPropertiesProps {
 }
 
 function ElementProperties({ isCollapsed }: ElementPropertiesProps) {
-    const { selectedElement } = useSelection();
+    const { selectedElement, selectElement } = useSelection();
+    const { state } = useProject();
+    const { isLoaded } = state;
+
+    useEffect(() => {
+        if (!isLoaded) {
+            selectElement(null);
+        }
+    }, [isLoaded, selectElement]);
+
     return (
         <div
             style={{

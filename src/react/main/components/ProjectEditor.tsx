@@ -93,6 +93,13 @@ function ProjectEditor() {
         }
     }, [project, isLoaded, activeValue]);
 
+    useEffect(() => {
+        if (!isLoaded) {
+            setActiveValue('schema');
+            setIsConfigModalOpen(false);
+        }
+    }, [isLoaded]);
+
     return (
         <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
             <Toc

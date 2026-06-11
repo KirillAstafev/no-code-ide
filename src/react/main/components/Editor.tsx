@@ -41,6 +41,7 @@ function Editor() {
 
     useEffect(() => {
         if (!isLoaded || !project || !project.schema) {
+            setEntities({blocks: [], connections: []});
             return;
         }
 
@@ -79,6 +80,14 @@ function Editor() {
 
         setEntities({blocks, connections});
     }, [setEntities, project, isLoaded]);
+
+    useEffect(() => {
+        if (!isLoaded) {
+            setIsModalOpen(false);
+            setCurrentModule(null);
+            setEntities({blocks: [], connections: []});
+        }
+    }, [isLoaded, setEntities]);
 
     const onBlockSelectionChange = useCallback(
         (detail: any) => {
