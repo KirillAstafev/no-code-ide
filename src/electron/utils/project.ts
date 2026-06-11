@@ -47,11 +47,17 @@ function generateSchemaFromProject(project: Project): Schema {
                 caption: `Приёмник: ${destination.targetType || 'UNKNOWN'}`,
                 data: destination,
             });
+            let label = 'output';
+            if (destination.targetType === 'POSTGRESQL' && destination.tableName) {
+                label = destination.tableName;
+            } else if (destination.targetType === 'KAFKA' && destination.topic) {
+                label = destination.topic;
+            }
             edges.push({
                 id: `edge-${moduleId}-to-${destId}`,
                 sourceBlockId: moduleId,
                 targetBlockId: destId,
-                label: 'output',
+                label: label,
                 arrowhead: 'arrow',
             });
         });

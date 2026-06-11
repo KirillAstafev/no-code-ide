@@ -138,7 +138,7 @@ function Editor() {
                     }
                     return null as any;
                 }).filter((source): source is DataSource => source !== null),
-                destinations: currentModule.destinations?.map(d => {
+                destinations: project.destinations?.map(d => {
                     const newDestination = destinationConnections.find(dc => dc.destinationName === d.name);
                     if (newDestination && newDestination.settings) {
                         return {
@@ -195,11 +195,18 @@ function Editor() {
                 const destinationNode = project.schema.nodes?.find(n => n.data.name === dc.destinationName);
                 if (destinationNode) {
                     const connectionId = `${moduleBlockId}_${destinationNode.id}`;
+                    const settings = dc.settings || {};
+                    let label = 'output';
+                    if (settings.targetType === 'POSTGRESQL' && settings.tableName) {
+                        label = settings.tableName;
+                    } else if (settings.targetType === 'KAFKA' && settings.topic) {
+                        label = settings.topic;
+                    }
                     newConnections.push({
                         id: connectionId,
                         sourceBlockId: moduleBlockId,
                         targetBlockId: destinationNode.id,
-                        label: 'output',
+                        label: label,
                         arrowhead: 'arrow',
                     });
                 }
@@ -252,31 +259,6 @@ function Editor() {
                     open={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     onConfirm={handleModalConfirm}
-                    onDestinationSettingsChange={(destinationName, settings) => {
-                        const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
-                        if (moduleIndex === -1) return;
-
-                        const updatedModule = {
-                            ...currentModule,
-                            destinations: currentModule.destinations?.map(d =>
-                                d.name === destinationName
-                                    ? {
-                                        ...d,
-                                        targetType: settings.targetType,
-                                        databaseName: settings.databaseName,
-                                        schemaName: settings.schemaName,
-                                        tableName: settings.tableName,
-                                        columnName: settings.columnName,
-                                        topic: settings.topic,
-                                    }
-                                    : d
-                            ),
-                        };
-
-                        const newModules = [...project.modules];
-                        newModules[moduleIndex] = updatedModule;
-                        updateProject({ ...project, modules: newModules });
-                    }}
                     module={currentModule}
                     availableSources={project.sources || []}
                     availableDestinations={project.destinations || []}

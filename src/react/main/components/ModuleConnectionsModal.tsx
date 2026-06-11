@@ -8,7 +8,6 @@ interface ModuleConnectionsModalProps {
     open: boolean;
     onClose: () => void;
     onConfirm: (sourceConnections: SourceConnectionInfo[], destinationConnections: SelectedDestination[]) => void;
-    onDestinationSettingsChange?: (destinationName: string, settings: DestinationSettings) => void;
     module: Module;
     availableSources: DataSource[];
     availableDestinations: DataDestination[];
@@ -84,7 +83,6 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                                                                   open,
                                                                                   onClose,
                                                                                   onConfirm,
-                                                                                  onDestinationSettingsChange,
                                                                                   module,
                                                                                   availableSources,
                                                                                   availableDestinations,
@@ -214,9 +212,6 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
             setDestinationConnections(prev =>
                 prev.map(dc => dc.destination.name === destinationName ? { ...dc, settings } : dc)
             );
-            if (onDestinationSettingsChange) {
-                onDestinationSettingsChange(destinationName, settings);
-            }
             setEditingDestination(null);
         }
     };
@@ -251,9 +246,7 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
 
     const renderSelectedDestinations = () => {
         const selected = destinationConnections.filter(dc => dc.enabled).map(dc => dc.destination);
-        return selected.length === 0 ? (
-            <Text variant="body-2" color="secondary">Нет выбранных приёмников</Text>
-        ) : (
+        return (
             selected.map(destination => {
                 const connection = destinationConnections.find(dc => dc.destination.name === destination.name);
                 const settings = connection?.settings || { targetType: '' };
@@ -266,7 +259,7 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                 Настроить
                             </Button>
                         </div>
-                        <Text variant="caption-1" color="secondary">
+                        <Text variant="caption-1" color="secondary" style={{ fontSize: '12px' }}>
                             {destination.url} ({targetType})
                         </Text>
                     </div>
@@ -315,12 +308,7 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                 display: 'flex',
                                 flexDirection: 'column'
                             }}>
-                                {availableSources.length === 0 ? (
-                                    <div style={{ padding: '20px', textAlign: 'center' }}>
-                                        <Text variant="body-2" color="secondary">Нет доступных источников</Text>
-                                    </div>
-                                ) : (
-                                    availableSources.map(source => {
+                                {availableSources.map(source => {
                                         const connection = sourceConnections.find(sc => sc.source.name === source.name);
                                         return (
                                             <div key={source.name} style={{
@@ -332,15 +320,15 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                             }}>
                                                 <div>
                                                     <Text variant="body-2">{source.name}</Text>
-                                                    <Text variant="caption-1" color="secondary">
+                                                    <Text variant="caption-1" color="secondary" style={{ fontSize: '12px', marginLeft: '4px' }}>
                                                         {source.ipAddress}:{source.tcpPort}
                                                     </Text>
                                                 </div>
                                                 <Select
                                                     value={connection?.enabled ? ['enabled'] : ['disabled']}
                                                     options={[
-                                                        { content: 'Подключить', value: 'enabled' },
-                                                        { content: 'Отключить', value: 'disabled' }
+                                                        { content: 'Подключён', value: 'enabled' },
+                                                        { content: 'Отключён', value: 'disabled' }
                                                     ]}
                                                     onUpdate={(values) => handleSourceToggle(source.name, (values as string[])[0] === 'enabled')}
                                                     size="s"
@@ -349,7 +337,7 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                             </div>
                                         );
                                     })
-                                )}
+                                }
                             </div>
                         </div>
 
@@ -391,13 +379,15 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                             }}>
                                                 <div>
                                                     <Text variant="body-2">{destination.name}</Text>
-                                                    <Text variant="caption-1" color="secondary">{destination.url}</Text>
+                                                    <Text variant="caption-1" color="secondary" style={{ fontSize: '12px', marginLeft: '4px' }}>
+                                                        {destination.url}
+                                                    </Text>
                                                 </div>
                                                 <Select
                                                     value={connection?.enabled ? ['enabled'] : ['disabled']}
                                                     options={[
-                                                        { content: 'Подключить', value: 'enabled' },
-                                                        { content: 'Отключить', value: 'disabled' }
+                                                        { content: 'Подключён', value: 'enabled' },
+                                                        { content: 'Отключён', value: 'disabled' }
                                                     ]}
                                                     onUpdate={(values) => handleDestinationToggle(destination.name, (values as string[])[0] === 'enabled')}
                                                     size="s"
