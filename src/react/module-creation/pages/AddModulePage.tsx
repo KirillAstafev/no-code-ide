@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, Text, TextInput, Button, Alert } from '@gravity-ui/uikit';
+import React, {useState} from 'react';
+import { Modal, Text, TextInput, Button } from '@gravity-ui/uikit';
 
 interface AddModulePageProps {
     open: boolean;
@@ -14,8 +14,8 @@ export const AddModulePage: React.FC<AddModulePageProps> = ({
     onAdd,
     existingModuleNames,
 }) => {
-    const [name, setName] = React.useState('');
-    const [error, setError] = React.useState<string | null>(null);
+    const [name, setName] = useState('');
+    const [error, setError] = useState<string | null>(null);
 
     const validate = (value: string): string | null => {
         const trimmed = value.trim();
@@ -56,13 +56,12 @@ export const AddModulePage: React.FC<AddModulePageProps> = ({
         onClose();
     };
 
-    const handleChange = (value: string) => {
+    const handleNameChange = (value: string) => {
         setName(value);
-        if (error) {
-            const newError = validate(value);
-            setError(newError);
-        }
+        setError(null);
     };
+
+    const isSaveEnabled = name.trim() !== '' && !error;
 
     return (
         <Modal open={open} onClose={onClose}>
@@ -78,19 +77,16 @@ export const AddModulePage: React.FC<AddModulePageProps> = ({
 
                     <TextInput
                         value={name}
-                        onUpdate={handleChange}
+                        onUpdate={handleNameChange}
                         hasClear
                         style={{ width: '100%', marginTop: '12px', marginBottom: '12px' }}
                         autoFocus
                         size="l"
                     />
-
                     {error && (
-                        <Alert
-                            theme="danger"
-                            message={error}
-                            style={{ marginBottom: '12px' }}
-                        />
+                        <Text variant="caption-1" color="danger" style={{ marginTop: '4px' }}>
+                            {error}
+                        </Text>
                     )}
                 </div>
 
@@ -110,7 +106,7 @@ export const AddModulePage: React.FC<AddModulePageProps> = ({
                         view="action"
                         size="m"
                         onClick={handleAdd}
-                        disabled={!!error || !name.trim()}
+                        disabled={!isSaveEnabled}
                     >
                         Добавить
                     </Button>

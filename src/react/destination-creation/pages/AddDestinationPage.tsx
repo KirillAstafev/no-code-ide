@@ -1,111 +1,83 @@
 import React, {useState} from 'react';
-import { Modal, Text, TextInput, Button, Alert, Select } from '@gravity-ui/uikit';
-import {useProject} from "../../context/ProjectContext.tsx";
+import { Modal, Text, TextInput, Button } from '@gravity-ui/uikit';
 
 interface AddDestinationPageProps {
     open: boolean;
     onClose: () => void;
     onAdd: (name: string, url: string, dependency: ExternalDependency) => void;
+    dependency: ExternalDependency;
 }
 
 export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
     open,
     onClose,
     onAdd,
+    dependency,
 }) => {
-    const { state } = useProject();
-    const { project, isLoaded } = state;
-
     const [name, setName] = useState('');
-    const [dependency, setDependency] = useState<ExternalDependency | null>(null);
     const [url, setUrl] = useState('');
-    const [error, setError] = useState<string | null>(null);
+    const [errors, setErrors] = useState<{name?: string; url?: string}>({});
 
-    const availableDependencies = isLoaded ? project?.dependencies || [] : [];
-    const dependencyItems = availableDependencies.map(dep => ({
-        content: dep.name,
-        value: dep.dependencyCode,
-        title: `${dep.name} (${dep.category})`
-    }));
-
-    const validate = (): string | null => {
-        const trimmed = name.trim();
-
-        if (!trimmed) {
-            return 'Введите название приёмника';
+    const validateField = (field: string, value: string): string | null => {
+        switch (field) {
+            case 'name':
+                const trimmed = value.trim();
+                if (!trimmed) {
+                    return 'Введите название приёмника';
+                }
+                if (trimmed.length < 2) {
+                    return 'Название должно быть не менее 2 символов';
+                }
+                if (trimmed.length > 50) {
+                    return 'Название не должно превышать 50 символов';
+                }
+                if (!/^[a-zA-Zа-яА-Я0-9_-]+$/.test(trimmed)) {
+                    return 'Название может содержать только буквы, цифры, _, -';
+                }
+                return null;
+            case 'url':
+                if (!value) {
+                    return 'Введите URL подключения';
+                }
+                return null;
+            default:
+                return null;
         }
-
-        if (trimmed.length < 2) {
-            return 'Название должно быть не менее 2 символов';
-        }
-
-        if (trimmed.length > 50) {
-            return 'Название не должно превышать 50 символов';
-        }
-
-        if (!/^[a-zA-Zа-яА-Я0-9_-]+$/.test(trimmed)) {
-            return 'Название может содержать только буквы, цифры, _, -';
-        }
-
-        if (project?.destinations?.some(d => d.name.toLowerCase() === trimmed.toLowerCase())) {
-            return 'Приёмник с таким именем уже существует';
-        }
-
-        if (!dependency) {
-            return 'Выберите зависимость для приёмника';
-        }
-
-        if (!url) {
-            return 'Введите URL подключения';
-        }
-
-        return null;
     };
 
     const handleAdd = () => {
-        const validationError = validate();
-        if (validationError) {
-            setError(validationError);
+        const nameError = validateField('name', name);
+        const urlError = validateField('url', url);
+        
+        const newErrors = {
+            name: nameError || undefined,
+            url: urlError || undefined,
+        };
+        
+        setErrors(newErrors);
+        
+        if (nameError || urlError) {
             return;
         }
 
-        if (dependency) {
-            onAdd(name.trim(), url, dependency);
-        }
+        onAdd(name.trim(), url, dependency);
         setName('');
-        setDependency(null);
-        setError(null);
+        setUrl('');
+        setErrors({});
         onClose();
     };
 
-    const handleChange = (value: string) => {
+    const handleNameChange = (value: string) => {
         setName(value);
-        if (error) {
-            const newError = validate();
-            setError(newError);
-        }
-    };
-
-    const handleDependencyChange = (value: string[]) => {
-        if (value.length > 0) {
-            const selectedDep = availableDependencies.find(d => d.dependencyCode === value[0]);
-            setDependency(selectedDep || null);
-        } else {
-            setDependency(null);
-        }
-        if (error) {
-            const newError = validate();
-            setError(newError);
-        }
+        setErrors({});
     };
 
     const handleUrlChange = (value: string) => {
         setUrl(value);
-        if (error) {
-            const newError = validate();
-            setError(newError);
-        }
+        setErrors({});
     };
+
+    const isSaveEnabled = Object.keys(errors).length === 0;
 
     return (
         <Modal open={open} onClose={onClose}>
@@ -121,25 +93,17 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                         </Text>
                         <TextInput
                             value={name}
-                            onUpdate={handleChange}
+                            onUpdate={handleNameChange}
                             hasClear
                             style={{ width: '100%', marginBottom: '12px', marginTop:'12px' }}
                             autoFocus
                             size="l"
                         />
-                    </div>
-
-                    <div style={{ marginBottom: '12px' }}>
-                        <Text variant="body-2" style={{ marginBottom: '6px', marginRight: '8px' }}>
-                            Зависимость
-                        </Text>
-                        <Select
-                            value={dependency ? [dependency.dependencyCode] : []}
-                            options={dependencyItems}
-                            onUpdate={handleDependencyChange}
-                            placeholder="Выберите зависимость"
-                            size="l"
-                        />
+                        {errors.name && (
+                            <Text variant="caption-1" color="danger" style={{ marginTop: '4px' }}>
+                                {errors.name}
+                            </Text>
+                        )}
                     </div>
 
                     <div style={{ marginBottom: '12px' }}>
@@ -154,15 +118,12 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                             size="l"
                             placeholder="http://localhost:5432"
                         />
+                        {errors.url && (
+                            <Text variant="caption-1" color="danger" style={{ marginTop: '4px' }}>
+                                {errors.url}
+                            </Text>
+                        )}
                     </div>
-
-                    {error && (
-                        <Alert
-                            theme="danger"
-                            message={error}
-                            style={{ marginBottom: '12px' }}
-                        />
-                    )}
                 </div>
 
                 <div
@@ -181,7 +142,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                         view="action"
                         size="m"
                         onClick={handleAdd}
-                        disabled={!!error || !name.trim() || !dependency || !url}
+                        disabled={!isSaveEnabled}
                     >
                         Добавить
                     </Button>

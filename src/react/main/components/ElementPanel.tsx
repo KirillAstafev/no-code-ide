@@ -57,6 +57,7 @@ function ElementPanel() {
     const [isAddModuleModalOpen, setIsAddModuleModalOpen] = useState(false);
     const [isAddDestinationModalOpen, setIsAddDestinationModalOpen] = useState(false);
     const [isAddSourceModalOpen, setIsAddSourceModalOpen] = useState(false);
+    const [selectedDependency, setSelectedDependency] = useState<ExternalDependency | null>(null);
 
     const availableDestinations = isLoaded && project?.dependencies
         ? project.dependencies.map(dep => dep.name)
@@ -98,9 +99,13 @@ function ElementPanel() {
             : ['Нет доступных приёмников'],
     });
 
-    const handleDestinationDoubleClick = () => {
-        if (isLoaded) {
-            setIsAddDestinationModalOpen(true);
+    const handleDestinationDoubleClick = (dependencyName: string) => {
+        if (isLoaded && project) {
+            const dependency = project.dependencies.find(d => d.name === dependencyName);
+            if (dependency) {
+                setSelectedDependency(dependency);
+                setIsAddDestinationModalOpen(true);
+            }
         }
     };
 
@@ -236,6 +241,7 @@ function ElementPanel() {
             setIsAddModuleModalOpen(false);
             setIsAddDestinationModalOpen(false);
             setIsAddSourceModalOpen(false);
+            setSelectedDependency(null);
         }
     }, [isLoaded]);
 
@@ -252,7 +258,7 @@ function ElementPanel() {
                                 } else if (section.title === 'Источники данных') {
                                     handleSourceDoubleClick();
                                 } else {
-                                    handleDestinationDoubleClick();
+                                    handleDestinationDoubleClick(item);
                                 }
                             }}
                             style={{
@@ -282,6 +288,7 @@ function ElementPanel() {
                 open={isAddDestinationModalOpen}
                 onClose={() => setIsAddDestinationModalOpen(false)}
                 onAdd={handleAddDestination}
+                dependency={selectedDependency || project?.dependencies[0] || { name: '', category: '', description: '', dependencyCode: '' }}
             />
             <AddSourcePage
                 open={isAddSourceModalOpen}

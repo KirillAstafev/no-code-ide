@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import { Modal, Text, TextInput, Button, Alert } from '@gravity-ui/uikit';
+import { Modal, Text, TextInput, Button } from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
 
 interface AddSourcePageProps {
@@ -19,56 +19,64 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
     const [name, setName] = useState('');
     const [ipAddress, setIpAddress] = useState('');
     const [tcpPort, setTcpPort] = useState('');
-    const [error, setError] = useState<string | null>(null);
+    const [errors, setErrors] = useState<{name?: string; ipAddress?: string; tcpPort?: string}>({});
 
-    const validate = (): string | null => {
-        const trimmedName = name.trim();
-
-        if (!trimmedName) {
-            return 'Введите название источника';
+    const validateField = (field: string, value: string): string | null => {
+        switch (field) {
+            case 'name':
+                const trimmedName = value.trim();
+                if (!trimmedName) {
+                    return 'Введите название источника';
+                }
+                if (trimmedName.length < 2) {
+                    return 'Название должно быть не менее 2 символов';
+                }
+                if (trimmedName.length > 50) {
+                    return 'Название не должно превышать 50 символов';
+                }
+                if (!/^[a-zA-Zа-яА-Я0-9_\-]+$/.test(trimmedName)) {
+                    return 'Название может содержать только буквы, цифры, _, -';
+                }
+                if (project?.sources?.some(s => s.name.toLowerCase() === trimmedName.toLowerCase())) {
+                    return 'Источник с таким именем уже существует';
+                }
+                return null;
+            case 'ipAddress':
+                if (!value) {
+                    return 'Введите IP-адрес';
+                }
+                if (!/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(value)) {
+                    return 'Введите корректный IP-адрес';
+                }
+                return null;
+            case 'tcpPort':
+                if (!value) {
+                    return 'Введите TCP-порт';
+                }
+                const portNum = parseInt(value, 10);
+                if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+                    return 'Введите корректный TCP-порт (1-65535)';
+                }
+                return null;
+            default:
+                return null;
         }
-
-        if (trimmedName.length < 2) {
-            return 'Название должно быть не менее 2 символов';
-        }
-
-        if (trimmedName.length > 50) {
-            return 'Название не должно превышать 50 символов';
-        }
-
-        if (!/^[a-zA-Zа-яА-Я0-9_\-]+$/.test(trimmedName)) {
-            return 'Название может содержать только буквы, цифры, _, -';
-        }
-
-        if (project?.sources?.some(s => s.name.toLowerCase() === trimmedName.toLowerCase())) {
-            return 'Источник с таким именем уже существует';
-        }
-
-        if (!ipAddress) {
-            return 'Введите IP-адрес';
-        }
-
-        // Простая валидация IP-адреса
-        if (!/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipAddress)) {
-            return 'Введите корректный IP-адрес';
-        }
-
-        if (!tcpPort) {
-            return 'Введите TCP-порт';
-        }
-
-        const portNum = parseInt(tcpPort, 10);
-        if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-            return 'Введите корректный TCP-порт (1-65535)';
-        }
-
-        return null;
     };
 
     const handleAdd = () => {
-        const validationError = validate();
-        if (validationError) {
-            setError(validationError);
+        const nameError = validateField('name', name);
+        const ipAddressError = validateField('ipAddress', ipAddress);
+        const tcpPortError = validateField('tcpPort', tcpPort);
+        
+        const newErrors = {
+            name: nameError || undefined,
+            ipAddress: ipAddressError || undefined,
+            tcpPort: tcpPortError || undefined,
+        };
+        
+        setErrors(newErrors);
+        
+        if (nameError || ipAddressError || tcpPortError) {
             return;
         }
 
@@ -80,17 +88,26 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
         setName('');
         setIpAddress('');
         setTcpPort('');
-        setError(null);
+        setErrors({});
         onClose();
     };
 
-    const handleChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (value: string) => {
-        setter(value);
-        if (error) {
-            const newError = validate();
-            setError(newError);
-        }
+    const handleNameChange = (value: string) => {
+        setName(value);
+        setErrors({});
     };
+
+    const handleIpAddressChange = (value: string) => {
+        setIpAddress(value);
+        setErrors({});
+    };
+
+    const handleTcpPortChange = (value: string) => {
+        setTcpPort(value);
+        setErrors({});
+    };
+
+    const isSaveEnabled = Object.keys(errors).length === 0;
 
     return (
         <Modal open={open} onClose={onClose}>
@@ -106,12 +123,17 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
                         </Text>
                         <TextInput
                             value={name}
-                            onUpdate={handleChange(setName)}
+                            onUpdate={handleNameChange}
                             hasClear
                             style={{ width: '100%', marginBottom: '12px', marginTop: '12px' }}
                             autoFocus
                             size="l"
                         />
+                        {errors.name && (
+                            <Text variant="caption-1" color="danger" style={{ marginTop: '4px' }}>
+                                {errors.name}
+                            </Text>
+                        )}
                     </div>
 
                     <div style={{ marginBottom: '12px' }}>
@@ -120,11 +142,16 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
                         </Text>
                         <TextInput
                             value={ipAddress}
-                            onUpdate={handleChange(setIpAddress)}
+                            onUpdate={handleIpAddressChange}
                             hasClear
                             style={{ width: '100%', marginBottom: '12px', marginTop: '12px' }}
                             size="l"
                         />
+                        {errors.ipAddress && (
+                            <Text variant="caption-1" color="danger" style={{ marginTop: '4px' }}>
+                                {errors.ipAddress}
+                            </Text>
+                        )}
                     </div>
 
                     <div style={{ marginBottom: '12px' }}>
@@ -133,21 +160,18 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
                         </Text>
                         <TextInput
                             value={tcpPort}
-                            onUpdate={handleChange(setTcpPort)}
+                            onUpdate={handleTcpPortChange}
                             hasClear
                             style={{ width: '100%', marginBottom: '12px', marginTop: '12px' }}
                             size="l"
                             type="number"
                         />
+                        {errors.tcpPort && (
+                            <Text variant="caption-1" color="danger" style={{ marginTop: '4px' }}>
+                                {errors.tcpPort}
+                            </Text>
+                        )}
                     </div>
-
-                    {error && (
-                        <Alert
-                            theme="danger"
-                            message={error}
-                            style={{ marginBottom: '12px' }}
-                        />
-                    )}
                 </div>
 
                 <div
@@ -166,7 +190,7 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
                         view="action"
                         size="m"
                         onClick={handleAdd}
-                        disabled={!!error || !name.trim() || !ipAddress || !tcpPort}
+                        disabled={!isSaveEnabled}
                     >
                         Добавить
                     </Button>
