@@ -8,6 +8,7 @@ interface ModuleConnectionsModalProps {
     open: boolean;
     onClose: () => void;
     onConfirm: (sourceConnections: SourceConnectionInfo[], destinationConnections: SelectedDestination[]) => void;
+    onDestinationSettingsChange?: (destinationName: string, settings: DestinationSettings) => void;
     module: Module;
     availableSources: DataSource[];
     availableDestinations: DataDestination[];
@@ -83,6 +84,7 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                                                                   open,
                                                                                   onClose,
                                                                                   onConfirm,
+                                                                                  onDestinationSettingsChange,
                                                                                   module,
                                                                                   availableSources,
                                                                                   availableDestinations,
@@ -212,6 +214,9 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
             setDestinationConnections(prev =>
                 prev.map(dc => dc.destination.name === destinationName ? { ...dc, settings } : dc)
             );
+            if (onDestinationSettingsChange) {
+                onDestinationSettingsChange(destinationName, settings);
+            }
             setEditingDestination(null);
         }
     };

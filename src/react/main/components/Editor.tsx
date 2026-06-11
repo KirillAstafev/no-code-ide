@@ -138,21 +138,21 @@ function Editor() {
                     }
                     return null as any;
                 }).filter((source): source is DataSource => source !== null),
-                destinations: destinationConnections.map(dc => {
-                    const destination = project.destinations?.find(d => d.name === dc.destinationName);
-                    if (destination) {
+                destinations: currentModule.destinations?.map(d => {
+                    const newDestination = destinationConnections.find(dc => dc.destinationName === d.name);
+                    if (newDestination && newDestination.settings) {
                         return {
-                            ...destination,
-                            targetType: dc.settings.targetType,
-                            databaseName: dc.settings.databaseName,
-                            schemaName: dc.settings.schemaName,
-                            tableName: dc.settings.tableName,
-                            columnName: dc.settings.columnName,
-                            topic: dc.settings.topic,
+                            ...d,
+                            targetType: newDestination.settings.targetType,
+                            databaseName: newDestination.settings.databaseName,
+                            schemaName: newDestination.settings.schemaName,
+                            tableName: newDestination.settings.tableName,
+                            columnName: newDestination.settings.columnName,
+                            topic: newDestination.settings.topic,
                         };
                     }
-                    return null as any;
-                }).filter((destination): destination is DataDestination => destination !== null),
+                    return d;
+                }),
             };
 
             const newModules = [...project.modules];
@@ -252,6 +252,31 @@ function Editor() {
                     open={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     onConfirm={handleModalConfirm}
+                    onDestinationSettingsChange={(destinationName, settings) => {
+                        const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
+                        if (moduleIndex === -1) return;
+
+                        const updatedModule = {
+                            ...currentModule,
+                            destinations: currentModule.destinations?.map(d =>
+                                d.name === destinationName
+                                    ? {
+                                        ...d,
+                                        targetType: settings.targetType,
+                                        databaseName: settings.databaseName,
+                                        schemaName: settings.schemaName,
+                                        tableName: settings.tableName,
+                                        columnName: settings.columnName,
+                                        topic: settings.topic,
+                                    }
+                                    : d
+                            ),
+                        };
+
+                        const newModules = [...project.modules];
+                        newModules[moduleIndex] = updatedModule;
+                        updateProject({ ...project, modules: newModules });
+                    }}
                     module={currentModule}
                     availableSources={project.sources || []}
                     availableDestinations={project.destinations || []}
