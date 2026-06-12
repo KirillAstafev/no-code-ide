@@ -126,7 +126,11 @@ function Editor() {
     );
 
     const handleModalConfirm = useCallback(
-        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationConnections: { destinationName: string; settings: DestinationSettings }[]) => {
+        (sourceConnections: {
+            sourceName: string;
+            commandName: string;
+            commandParams: Record<string, string | number | boolean>
+        }[], destinationConnections: { destinationName: string; settings: DestinationSettings }[]) => {
             if (!currentModule || !project) return;
 
             const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
@@ -167,6 +171,14 @@ function Editor() {
             const newModules = [...project.modules];
             newModules[moduleIndex] = newModule;
 
+            const newSources = project.sources?.map(source => {
+                const updatedSource = newModule.sources.find(ms => ms.name === source.name);
+                if (updatedSource) {
+                    return updatedSource;
+                }
+                return source;
+            });
+
             const newDestinations = project.destinations?.map(d => {
                 const updatedDestination = newModule.destinations.find(md => md.name === d.name);
                 if (updatedDestination) {
@@ -180,7 +192,7 @@ function Editor() {
             const moduleBlockId = `module-${currentModule.name}`;
 
             // Удаляем старые связи для модуля
-            const filteredEdges = existingEdges.filter((edge: SchemaEdge) => 
+            const filteredEdges = existingEdges.filter((edge: SchemaEdge) =>
                 edge.sourceBlockId !== moduleBlockId && edge.targetBlockId !== moduleBlockId
             );
 
@@ -228,21 +240,22 @@ function Editor() {
             });
 
             const existingNodes = project.schema.nodes || [];
-            
+
             updateProject({
                 modules: newModules,
+                sources: newSources,
                 destinations: newDestinations,
                 schema: {
                     ...project.schema,
                     nodes: existingNodes.map(node => {
                         if (node.id === `module-${currentModule.name}`) {
-                            return { ...node, data: newModule };
+                            return {...node, data: newModule};
                         }
                         // Обновляем узлы приёмников
                         if (node.type === 'destination' && newDestinations) {
                             const updatedDestination = newDestinations.find(d => d.name === node.data.name);
                             if (updatedDestination) {
-                                return { ...node, data: updatedDestination };
+                                return {...node, data: updatedDestination};
                             }
                         }
                         return node;
@@ -254,7 +267,7 @@ function Editor() {
             setIsModalOpen(false);
             setCurrentModule(null);
         },
-        [currentModule, graph, project, updateProject]
+        [currentModule, project, updateProject]
     );
 
     return (

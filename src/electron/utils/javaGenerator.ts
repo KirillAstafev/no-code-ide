@@ -37,27 +37,17 @@ function generateApplicationProperties(
         });
     }
 
-    // Настройки приёмников данных
     if (destinations.length > 0) {
         destinations.forEach((destination) => {
             const destName = normalizePropertyName(destination.destinationName);
 
             if (destination.targetType === 'POSTGRESQL') {
                 const pgSettings = destination.postgresql;
-                const host = pgSettings?.host || 'localhost';
-                const port = pgSettings?.port || 5432;
-                const database = pgSettings?.databaseName || 'postgres';
-                const username = pgSettings?.username || 'postgres';
-                const password = pgSettings?.password || '';
                 const schemaName = pgSettings?.schemaName || 'public';
                 const tableName = pgSettings?.tableName || 'your_table';
                 const columnName = pgSettings?.columnName || 'data_column';
 
                 lines.push(`# PostgreSQL Configuration for ${destination.destinationName}`);
-                lines.push(`spring.datasource.${destName}.url=jdbc:postgresql://${host}:${port}/${database}`);
-                lines.push(`spring.datasource.${destName}.username=${username}`);
-                lines.push(`spring.datasource.${destName}.password=${password}`);
-                lines.push(`spring.datasource.${destName}.driver-class-name=org.postgresql.Driver`);
                 lines.push(`app.postgresql.${destName}.schema=${schemaName}`);
                 lines.push(`app.postgresql.${destName}.table=${tableName}`);
                 lines.push(`app.postgresql.${destName}.column=${columnName}`);
@@ -65,19 +55,9 @@ function generateApplicationProperties(
 
             } else if (destination.targetType === 'KAFKA') {
                 const kafkaSettings = destination.kafka;
-                const bootstrapServers = kafkaSettings?.bootstrapServers || 'localhost:9092';
-                const groupId = kafkaSettings?.groupId || `${destName}-group`;
-                const clientId = kafkaSettings?.clientId || `${destName}-client`;
                 const topic = kafkaSettings?.topic || 'default-topic';
 
                 lines.push(`# Kafka Configuration for ${destination.destinationName}`);
-                lines.push(`spring.kafka.${destName}.bootstrap-servers=${bootstrapServers}`);
-                lines.push(`spring.kafka.${destName}.consumer.group-id=${groupId}`);
-                lines.push(`spring.kafka.${destName}.client-id=${clientId}`);
-                lines.push(`spring.kafka.${destName}.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer`);
-                lines.push(`spring.kafka.${destName}.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer`);
-                lines.push(`spring.kafka.${destName}.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer`);
-                lines.push(`spring.kafka.${destName}.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer`);
                 lines.push(`app.kafka.${destName}.topic=${topic}`);
                 lines.push('');
 
@@ -169,7 +149,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
             name: normalizeIdentifier(source.name),
             ipAddress: source.ipAddress,
             tcpPort: source.tcpPort,
-            commandName: source.command?.name || source.name || 'DEFAULT_COMMAND',
+            commandName: source.command?.name || 'DEFAULT_COMMAND',
         });
     });
 
@@ -186,7 +166,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
                 sourceName: sourceName,
                 sourceIpAddress: source.ipAddress,
                 sourceTcpPort: source.tcpPort,
-                commandName: source.command?.name || source.name || 'DEFAULT_COMMAND',
+                commandName: source.command?.name || 'DEFAULT_COMMAND',
             });
         });
 
@@ -339,8 +319,8 @@ import javax.sql.DataSource;\n`;
     destinations.forEach(dest => {
         const destName = normalizePropertyName(dest.destinationName);
         const pgSettings = dest.postgresql;
-        const host = pgSettings?.host || 'localhost';
-        const port = pgSettings?.port || 5432;
+        const host = dest?.destinationUrl.split(":")[0].trim() || 'localhost';
+        const port = dest?.destinationUrl.split(":")[1].trim() || 5432;
         const database = pgSettings?.databaseName || 'postgres';
         const username = pgSettings?.username || 'postgres';
         const password = pgSettings?.password || '';
@@ -393,8 +373,7 @@ import java.util.Map;\n`;
 
     destinations.forEach(dest => {
         const destName = normalizePropertyName(dest.destinationName);
-        const kafkaSettings = dest.kafka;
-        const bootstrapServers = kafkaSettings?.bootstrapServers || 'localhost:9092';
+        const bootstrapServers = dest.destinationUrl || 'localhost:9092';
 
         beans += `
     @Bean(name = "${destName}ProducerFactory")
@@ -642,6 +621,7 @@ function generateDestinationClass(destination: DestinationConnectionInfo, basePa
 
     const beanName = `${propertyName}Client`;
 
+    const imports = `import org.springframework.stereotype.Component;\n`;
     let fields = '';
     let constructorParams = '';
     let constructorAssignments = '';
@@ -768,6 +748,7 @@ import org.springframework.beans.factory.annotation.Value;\n`;
     }
 
     return `${packageDeclaration}
+${imports}
 ${additionalImports}
 ${componentAnnotation}
 public class ${className} {

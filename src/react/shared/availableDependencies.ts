@@ -15,7 +15,7 @@ export const availableDependencies: ExternalDependency[] = [
         name: 'PostgreSQL',
         category: 'SQL',
         description: 'Реляционная СУБД',
-        dependencyCode: 'postgresql'
+        dependencyCode: 'jdbc, postgresql'
     },
     {
         name: 'Redis',
