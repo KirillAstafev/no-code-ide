@@ -31,8 +31,8 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                 if (trimmed.length > 50) {
                     return 'Название не должно превышать 50 символов';
                 }
-                if (!/^[a-zA-Zа-яА-Я0-9_-]+$/.test(trimmed)) {
-                    return 'Название может содержать только буквы, цифры, _, -';
+                if (!/^[a-zA-Z]+$/.test(trimmed)) {
+                    return 'Название должно содержать только латинские буквы';
                 }
                 return null;
             case 'url':

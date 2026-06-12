@@ -32,8 +32,8 @@ export const AddModulePage: React.FC<AddModulePageProps> = ({
             return 'Название не должно превышать 50 символов';
         }
 
-        if (!/^[a-zA-Zа-яА-Я0-9_\-]+$/.test(trimmed)) {
-            return 'Название может содержать только буквы, цифры, _, -';
+        if (!/^[a-zA-Z]+$/.test(trimmed)) {
+            return 'Название должно содержать только латинские буквы';
         }
 
         if (existingModuleNames.map((n) => n.toLowerCase()).includes(trimmed.toLowerCase())) {

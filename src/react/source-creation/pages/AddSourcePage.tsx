@@ -34,8 +34,8 @@ export const AddSourcePage: React.FC<AddSourcePageProps> = ({
                 if (trimmedName.length > 50) {
                     return 'Название не должно превышать 50 символов';
                 }
-                if (!/^[a-zA-Zа-яА-Я0-9_\-]+$/.test(trimmedName)) {
-                    return 'Название может содержать только буквы, цифры, _, -';
+                if (!/^[a-zA-Z]+$/.test(trimmedName)) {
+                    return 'Название должно содержать только латинские буквы';
                 }
                 if (project?.sources?.some(s => s.name.toLowerCase() === trimmedName.toLowerCase())) {
                     return 'Источник с таким именем уже существует';
