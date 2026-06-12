@@ -103,7 +103,7 @@ const CreateProjectPage: React.FC<CreateProjectPageProps> = ({
                     <TabProvider value={activeTab} onUpdate={(value) => setActiveTab(value as CreateProjectTab)}>
                         <TabList size="l">
                             <Tab value="basic">Основные параметры</Tab>
-                            <Tab value="dependencies">Настройка зависимостей</Tab>
+                            <Tab value="dependencies">Настройка библиотек</Tab>
                         </TabList>
 
                         <div style={styles.contentWrapper}>

@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {Alert, Button, Card, Checkbox, Modal, Text, TextInput} from '@gravity-ui/uikit';
 import {useProject} from "../../context/ProjectContext.tsx";
+import {availableDependencies as AVAILABLE_DEPENDENCIES} from '../../shared/availableDependencies';
 
 interface ProjectConfigModalProps {
     open: boolean;
@@ -88,33 +89,14 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
             setName(project.name);
             setLocation(project.location);
             setError(null);
+            setSelectedDependencies(project.dependencies);
+            setDependenciesToDelete([]);
         }
     };
 
     if (!isLoaded || !project) {
         return null;
     }
-
-    const availableDependencies = [
-        {
-            name: 'Apache Kafka',
-            category: 'Messaging',
-            description: 'Потоковая обработка событий',
-            dependencyCode: 'kafka'
-        },
-        {
-            name: 'PostgreSQL Driver',
-            category: 'SQL',
-            description: 'Драйвер для PostgreSQL',
-            dependencyCode: 'postgresql'
-        },
-        {
-            name: 'ClickHouse JDBC',
-            category: 'NoSQL',
-            description: 'Колоночная база данных для аналитики',
-            dependencyCode: 'clickhouse'
-        },
-    ];
 
     return (
         <Modal open={open} onClose={onClose}>
@@ -166,7 +148,7 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
 
                 <div style={{ marginBottom: '20px' }}>
                     <Text variant="subheader-1" style={{ marginBottom: '12px' }}>
-                        Зависимости проекта
+                        Библиотеки проекта
                     </Text>
                     <div style={{ marginTop: '8px', marginBottom: '12px' }}>
                         <div style={{
@@ -178,11 +160,11 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
                             background: 'var(--g-color-base-background)',
                             marginTop: '4px'
                         }}>
-                            {availableDependencies.map(dep => (
-                                <Checkbox
-                                    key={dep.dependencyCode}
-                                    checked={selectedDependencies.some(d => d.dependencyCode === dep.dependencyCode)}
-                                    onUpdate={() => {
+                            {AVAILABLE_DEPENDENCIES.map((dep) => (
+                                <div key={dep.dependencyCode} style={{ marginBottom: '8px' }}>
+                                    <Checkbox
+                                        checked={selectedDependencies.some(d => d.dependencyCode === dep.dependencyCode)}
+                                        onUpdate={() => {
                                         const isSelected = selectedDependencies.some(d => d.dependencyCode === dep.dependencyCode);
                                         if (isSelected) {
                                             const dependentDestinations = project.destinations?.filter(dest => {
@@ -191,9 +173,9 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
 
                                             if (dependentDestinations.length > 0) {
                                                 const confirmRemove = window.confirm(
-                                                    `Зависимость "${dep.name}" используется приёмниками данных: ` +
+                                                    `Библиотека "${dep.name}" используется приёмниками данных: ` +
                                                     `${dependentDestinations.map(d => d.name).join(', ')}. ` +
-                                                    `При удалении зависимости эти приёмники будут удалены. Продолжить?`
+                                                    `При удалении библиотеки эти приёмники будут удалены. Продолжить?`
                                                 );
                                                 if (confirmRemove) {
                                                     setDependenciesToDelete([...dependenciesToDelete, dep]);
@@ -206,6 +188,7 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
                                             setSelectedDependencies([...selectedDependencies, dep]);
                                         }
                                     }}
+                                    style={{ marginBottom: '0' }}
                                 >
                                     <div>
                                         <div>{dep.name}</div>
@@ -214,6 +197,7 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
                                         </Text>
                                     </div>
                                 </Checkbox>
+                            </div>
                             ))}
                         </div>
                     </div>
@@ -228,7 +212,7 @@ export const ProjectConfigPage: React.FC<ProjectConfigModalProps> = ({
                         }}>
                             {selectedDependencies.length === 0 ? (
                                 <Text variant="body-1" color="secondary" style={{ padding: '8px' }}>
-                                    Нет добавленных зависимостей
+                                    Нет добавленных библиотек
                                 </Text>
                             ) : (
                                 <div style={{

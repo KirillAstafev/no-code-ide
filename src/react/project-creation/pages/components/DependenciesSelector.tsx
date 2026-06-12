@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import {TextInput, Checkbox, Card, Button, Text, Label} from '@gravity-ui/uikit';
+import {availableDependencies} from '../../../shared/availableDependencies';
 
 interface DependenciesSelectorProps {
     selectedDependencies: ExternalDependency[];
@@ -11,39 +12,6 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
                                                                               onDependenciesChange,
                                                                           }) => {
     const [searchTerm, setSearchTerm] = useState('');
-
-    const availableDependencies = [
-        {
-            name: 'Apache Kafka',
-            category: 'Обмен сообщениями',
-            description: 'Потоковая обработка событий',
-            dependencyCode: 'kafka'
-        },
-        {
-            name:'RabbitMQ',
-            category:'Обмен сообщениями',
-            description:`Параллельный и асинхронный обмен сообщениями`,
-            dependencyCode:'amqp',
-        },
-        {
-            name: 'PostgreSQL',
-            category: 'SQL',
-            description: 'Реляционная СУБД',
-            dependencyCode: 'postgresql'
-        },
-        {
-            name: 'Redis',
-            category: 'NoSQL',
-            description: "In-memory СУБД",
-            dependencyCode: "data-redis",
-        },
-        {
-            name: 'Cassandra',
-            category: 'NoSQL',
-            description: `Кластеризованное хранилище данных`,
-            dependencyCode:"data-cassandra",
-        }
-    ];
 
     const toggleDependency = (dep: ExternalDependency) => {
         const isSelected = selectedDependencies.some(d => d.dependencyCode === dep.dependencyCode);
@@ -65,7 +33,7 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
         }
         acc[dep.category].push(dep);
         return acc;
-    }, {} as Record<string, typeof availableDependencies>);
+    }, {} as Record<string, ExternalDependency[]>);
 
     const styles = {
         container: {
@@ -90,11 +58,8 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
             marginBottom: '8px',
             marginTop: '12px',
         },
-        dependenciesGrid: {
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '8px',
-            paddingTop: '8px',
+        dependencyItem: {
+            marginBottom: '8px',
         },
         addedDepsSection: {
             marginTop: '16px',
@@ -131,9 +96,9 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
 
     return (
         <div style={styles.container}>
-            <Label>Зависимости</Label>
+            <Label>Библиотеки</Label>
             <TextInput
-                placeholder="Поиск зависимостей (Kafka, PostgreSQL)..."
+                placeholder="Поиск библиотек (Kafka, PostgreSQL)..."
                 value={searchTerm}
                 onUpdate={setSearchTerm}
                 style={styles.searchInput}
@@ -146,43 +111,39 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
                         <Text variant="subheader-2" style={styles.categoryTitle}>
                             {category}
                         </Text>
-                        <div style={styles.dependenciesGrid}>
-                            {deps.map((dep) => {
-                                const isSelected = selectedDependencies.some(
-                                    d => d.dependencyCode === dep.dependencyCode
-                                );
-                                return (
-                                    <Checkbox
-                                        key={dep.dependencyCode}
-                                        checked={isSelected}
-                                        onUpdate={() => toggleDependency(dep)}
-                                    >
-                                        <div>
-                                            <div>{dep.name}</div>
-                                            <Text variant="caption-2" color="secondary">
-                                                {dep.description}
-                                            </Text>
-                                        </div>
-                                    </Checkbox>
-                                );
-                            })}
-                        </div>
+                        {deps.map((dep) => (
+                            <div key={dep.dependencyCode} style={styles.dependencyItem}>
+                                <Checkbox
+                                    checked={selectedDependencies.some(
+                                        d => d.dependencyCode === dep.dependencyCode
+                                    )}
+                                    onUpdate={() => toggleDependency(dep)}
+                                >
+                                    <div>
+                                        <div>{dep.name}</div>
+                                        <Text variant="caption-2" color="secondary">
+                                            {dep.description}
+                                        </Text>
+                                    </div>
+                                </Checkbox>
+                            </div>
+                        ))}
                     </div>
                 ))}
 
                 {filteredDependencies.length === 0 && (
                     <Text variant="body-2" color="secondary" style={styles.noResults}>
-                        Зависимости не найдены
+                        Библиотеки не найдены
                     </Text>
                 )}
             </div>
 
             <div style={styles.addedDepsSection}>
-                <Text variant="subheader-2">Добавленные зависимости:</Text>
+                <Text variant="subheader-2">Добавленные библиотеки:</Text>
                 <div style={styles.addedDepsContainer}>
                     {selectedDependencies.length === 0 ? (
                         <Text variant="body-1" color="secondary" style={styles.emptyMessage}>
-                            Нет добавленных зависимостей
+                            Нет добавленных библиотек
                         </Text>
                     ) : (
                         <div style={styles.tagsContainer}>
