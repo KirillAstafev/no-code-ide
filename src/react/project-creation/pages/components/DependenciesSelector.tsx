@@ -15,22 +15,34 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
     const availableDependencies = [
         {
             name: 'Apache Kafka',
-            category: 'Messaging',
+            category: 'Обмен сообщениями',
             description: 'Потоковая обработка событий',
             dependencyCode: 'kafka'
         },
         {
-            name: 'PostgreSQL Driver',
+            name:'RabbitMQ',
+            category:'Обмен сообщениями',
+            description:`Параллельный и асинхронный обмен сообщениями`,
+            dependencyCode:'amqp',
+        },
+        {
+            name: 'PostgreSQL',
             category: 'SQL',
-            description: 'Драйвер для PostgreSQL',
+            description: 'Реляционная СУБД',
             dependencyCode: 'postgresql'
         },
         {
-            name: 'ClickHouse JDBC',
-            category: 'SQL',
-            description: 'Колоночная база данных для аналитики',
-            dependencyCode: 'clickhouse'
+            name: 'Redis',
+            category: 'NoSQL',
+            description: "In-memory СУБД",
+            dependencyCode: "data-redis",
         },
+        {
+            name: 'Cassandra',
+            category: 'NoSQL',
+            description: `Кластеризованное хранилище данных`,
+            dependencyCode:"data-cassandra",
+        }
     ];
 
     const toggleDependency = (dep: ExternalDependency) => {
@@ -121,7 +133,7 @@ export const DependenciesSelector: React.FC<DependenciesSelectorProps> = ({
         <div style={styles.container}>
             <Label>Зависимости</Label>
             <TextInput
-                placeholder="Поиск зависимостей (Kafka, PostgreSQL, ClickHouse)..."
+                placeholder="Поиск зависимостей (Kafka, PostgreSQL)..."
                 value={searchTerm}
                 onUpdate={setSearchTerm}
                 style={styles.searchInput}
