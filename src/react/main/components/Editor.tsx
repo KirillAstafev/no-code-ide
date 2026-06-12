@@ -6,7 +6,7 @@ import {useSelection} from "../../context/SelectionContext.tsx";
 import {SOURCE_BLOCK, SourceBlock} from "./SourceBlock.ts";
 import {DESTINATION_BLOCK, DestinationBlock} from "./DestinationBlock.ts";
 import {MODULE_BLOCK, ModuleBlock} from "./ModuleBlock.ts";
-import {ModuleConnectionsModal} from "./ModuleConnectionsModal.tsx";
+import {ModuleConnectionsModal, type DestinationSettings} from "./ModuleConnectionsModal.tsx";
 import {DATA_SOURCE_COMMANDS} from "./constants/dataSourceCommands";
 
 interface SchemaEdge {
@@ -126,7 +126,7 @@ function Editor() {
     );
 
     const handleModalConfirm = useCallback(
-        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationConnections: { destinationName: string; settings: { targetType: string; databaseName?: string; schemaName?: string; tableName?: string; columnName?: string; topic?: string; username?: string; password?: string; queueName?: string; exchangeName?: string; routingKey?: string; key?: string; ttl?: number; keyspace?: string; table?: string; partitionKey?: string; postgresql?: any; kafka?: any; rabbitmq?: any; redis?: any; cassandra?: any } }[]) => {
+        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationConnections: { destinationName: string; settings: DestinationSettings }[]) => {
             if (!currentModule || !project) return;
 
             const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
@@ -153,31 +153,11 @@ function Editor() {
                         return {
                             ...d,
                             targetType: newDestination.settings.targetType,
-                            postgresql: {
-                                databaseName: newDestination.settings.databaseName,
-                                schemaName: newDestination.settings.schemaName,
-                                tableName: newDestination.settings.tableName,
-                                columnName: newDestination.settings.columnName,
-                                username: newDestination.settings.username,
-                                password: newDestination.settings.password,
-                            },
-                            kafka: {
-                                topic: newDestination.settings.topic,
-                            },
-                            rabbitmq: {
-                                queueName: newDestination.settings.queueName,
-                                exchangeName: newDestination.settings.exchangeName,
-                                routingKey: newDestination.settings.routingKey,
-                            },
-                            redis: {
-                                key: newDestination.settings.key,
-                                ttl: newDestination.settings.ttl,
-                            },
-                            cassandra: {
-                                keyspace: newDestination.settings.keyspace,
-                                table: newDestination.settings.table,
-                                partitionKey: newDestination.settings.partitionKey,
-                            },
+                            postgresql: newDestination.settings.postgresql || {},
+                            kafka: newDestination.settings.kafka || {},
+                            rabbitmq: newDestination.settings.rabbitmq || {},
+                            redis: newDestination.settings.redis || {},
+                            cassandra: newDestination.settings.cassandra || {},
                         };
                     }
                     return d;
@@ -226,10 +206,16 @@ function Editor() {
                     const connectionId = `${moduleBlockId}_${destinationNode.id}`;
                     const settings = dc.settings || {};
                     let label = 'output';
-                    if (settings.targetType === 'POSTGRESQL' && settings.tableName) {
-                        label = settings.tableName;
-                    } else if (settings.targetType === 'KAFKA' && settings.topic) {
-                        label = settings.topic;
+                    if (settings.targetType === 'POSTGRESQL' && settings.postgresql?.tableName) {
+                        label = settings.postgresql.tableName;
+                    } else if (settings.targetType === 'KAFKA' && settings.kafka?.topic) {
+                        label = settings.kafka.topic;
+                    } else if (settings.targetType === 'RABBITMQ' && settings.rabbitmq?.queueName) {
+                        label = settings.rabbitmq.queueName;
+                    } else if (settings.targetType === 'REDIS' && settings.redis?.key) {
+                        label = settings.redis.key;
+                    } else if (settings.targetType === 'CASSANDRA' && settings.cassandra?.table) {
+                        label = settings.cassandra.table;
                     }
                     newConnections.push({
                         id: connectionId,
@@ -248,11 +234,19 @@ function Editor() {
                 destinations: newDestinations,
                 schema: {
                     ...project.schema,
-                    nodes: existingNodes.map(node =>
-                        node.id === `module-${currentModule.name}`
-                            ? { ...node, data: newModule }
-                            : node
-                    ),
+                    nodes: existingNodes.map(node => {
+                        if (node.id === `module-${currentModule.name}`) {
+                            return { ...node, data: newModule };
+                        }
+                        // Обновляем узлы приёмников
+                        if (node.type === 'destination' && newDestinations) {
+                            const updatedDestination = newDestinations.find(d => d.name === node.data.name);
+                            if (updatedDestination) {
+                                return { ...node, data: updatedDestination };
+                            }
+                        }
+                        return node;
+                    }),
                     edges: [...filteredEdges, ...newConnections],
                 },
             });

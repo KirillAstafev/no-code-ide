@@ -32,7 +32,7 @@ interface DestinationConnection {
     settings: DestinationSettings;
 }
 
-interface DestinationSettings {
+export interface DestinationSettings {
     targetType: string;
     postgresql?: DestinationPostgresqlSettings;
     kafka?: DestinationKafkaSettings;

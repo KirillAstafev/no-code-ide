@@ -49,72 +49,82 @@ function generateApplicationProperties(
                 const database = pgSettings?.databaseName || 'postgres';
                 const username = pgSettings?.username || 'postgres';
                 const password = pgSettings?.password || '';
+                const schemaName = pgSettings?.schemaName || 'public';
+                const tableName = pgSettings?.tableName || 'your_table';
+                const columnName = pgSettings?.columnName || 'data_column';
 
+                lines.push(`# PostgreSQL Configuration for ${destination.destinationName}`);
                 lines.push(`spring.datasource.${destName}.url=jdbc:postgresql://${host}:${port}/${database}`);
                 lines.push(`spring.datasource.${destName}.username=${username}`);
                 lines.push(`spring.datasource.${destName}.password=${password}`);
                 lines.push(`spring.datasource.${destName}.driver-class-name=org.postgresql.Driver`);
+                lines.push(`app.postgresql.${destName}.schema=${schemaName}`);
+                lines.push(`app.postgresql.${destName}.table=${tableName}`);
+                lines.push(`app.postgresql.${destName}.column=${columnName}`);
                 lines.push('');
 
             } else if (destination.targetType === 'KAFKA') {
                 const kafkaSettings = destination.kafka;
                 const bootstrapServers = kafkaSettings?.bootstrapServers || 'localhost:9092';
+                const groupId = kafkaSettings?.groupId || `${destName}-group`;
+                const clientId = kafkaSettings?.clientId || `${destName}-client`;
+                const topic = kafkaSettings?.topic || 'default-topic';
 
+                lines.push(`# Kafka Configuration for ${destination.destinationName}`);
                 lines.push(`spring.kafka.${destName}.bootstrap-servers=${bootstrapServers}`);
-
-                if (kafkaSettings?.groupId) {
-                    lines.push(`spring.kafka.${destName}.consumer.group-id=${kafkaSettings.groupId}`);
-                }
-
-                if (kafkaSettings?.clientId) {
-                    lines.push(`spring.kafka.${destName}.client-id=${kafkaSettings.clientId}`);
-                }
-
-                if (kafkaSettings?.topic) {
-                    lines.push(`app.kafka.${destName}.topic=${kafkaSettings.topic}`);
-                }
-
+                lines.push(`spring.kafka.${destName}.consumer.group-id=${groupId}`);
+                lines.push(`spring.kafka.${destName}.client-id=${clientId}`);
+                lines.push(`spring.kafka.${destName}.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer`);
+                lines.push(`spring.kafka.${destName}.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer`);
+                lines.push(`spring.kafka.${destName}.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer`);
+                lines.push(`spring.kafka.${destName}.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer`);
+                lines.push(`app.kafka.${destName}.topic=${topic}`);
                 lines.push('');
 
             } else if (destination.targetType === 'RABBITMQ') {
                 const urlParts = destination.destinationUrl.split(':');
                 const host = urlParts[0] || 'localhost';
                 const port = urlParts[1] || '5672';
+                const queueName = destination.rabbitmq?.queueName || `queue-${destName}`;
+                const exchangeName = destination.rabbitmq?.exchangeName || '';
+                const routingKey = destination.rabbitmq?.routingKey || '';
 
+                lines.push(`# RabbitMQ Configuration for ${destination.destinationName}`);
                 lines.push(`spring.rabbitmq.${destName}.host=${host}`);
                 lines.push(`spring.rabbitmq.${destName}.port=${port}`);
-
-                if (destination.rabbitmq?.queueName) {
-                    lines.push(`spring.rabbitmq.${destName}.queue=${destination.rabbitmq.queueName}`);
+                lines.push(`app.rabbitmq.${destName}.queue=${queueName}`);
+                if (exchangeName) {
+                    lines.push(`app.rabbitmq.${destName}.exchange=${exchangeName}`);
                 }
-
+                if (routingKey) {
+                    lines.push(`app.rabbitmq.${destName}.routing-key=${routingKey}`);
+                }
                 lines.push('');
 
             } else if (destination.targetType === 'REDIS') {
                 const urlParts = destination.destinationUrl.split(':');
                 const host = urlParts[0] || 'localhost';
                 const port = urlParts[1] || '6379';
+                const key = destination.redis?.key || 'default-key';
+                const ttl = destination.redis?.ttl || 0;
 
+                lines.push(`# Redis Configuration for ${destination.destinationName}`);
                 lines.push(`spring.redis.${destName}.host=${host}`);
                 lines.push(`spring.redis.${destName}.port=${port}`);
-
-                if (destination.redis?.key) {
-                    lines.push(`spring.redis.${destName}.key=${destination.redis.key}`);
-                }
-
+                lines.push(`app.redis.${destName}.key=${key}`);
+                lines.push(`app.redis.${destName}.ttl=${ttl}`);
                 lines.push('');
 
             } else if (destination.targetType === 'CASSANDRA') {
                 const contactPoints = destination.destinationUrl.split(',');
+                const keyspace = destination.cassandra?.keyspace || 'default_keyspace';
+                const table = destination.cassandra?.table || 'default_table';
 
+                lines.push(`# Cassandra Configuration for ${destination.destinationName}`);
                 lines.push(`spring.data.cassandra.${destName}.contact-points=${contactPoints.join(',')}`);
                 lines.push(`spring.data.cassandra.${destName}.port=9042`);
-                lines.push(`spring.data.cassandra.${destName}.keyspace=${destination.cassandra?.keyspace || 'default_keyspace'}`);
-
-                if (destination.cassandra?.table) {
-                    lines.push(`spring.data.cassandra.${destName}.table=${destination.cassandra.table}`);
-                }
-
+                lines.push(`spring.data.cassandra.${destName}.keyspace=${keyspace}`);
+                lines.push(`app.cassandra.${destName}.table=${table}`);
                 lines.push('');
             }
         });
@@ -159,7 +169,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
             name: normalizeIdentifier(source.name),
             ipAddress: source.ipAddress,
             tcpPort: source.tcpPort,
-            commandName: source.command?.name || 'DEFAULT_COMMAND',
+            commandName: source.command?.name || source.name || 'DEFAULT_COMMAND',
         });
     });
 
@@ -176,7 +186,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
                 sourceName: sourceName,
                 sourceIpAddress: source.ipAddress,
                 sourceTcpPort: source.tcpPort,
-                commandName: source.command?.name || 'DEFAULT_COMMAND',
+                commandName: source.command?.name || source.name || 'DEFAULT_COMMAND',
             });
         });
 
@@ -318,7 +328,6 @@ function generatePostgreSQLConfig(
     const packageDeclaration = `package ${basePackage}.config;\n`;
 
     const imports = `import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -435,7 +444,7 @@ import org.springframework.context.annotation.Configuration;\n`;
         const destName = normalizePropertyName(dest.destinationName);
         const urlParts = dest.destinationUrl.split(':');
         const host = urlParts[0] || 'localhost';
-        const port = urlParts[1] || '5672';
+        const port = parseInt(urlParts[1]) || 5672;
         const queueName = dest.rabbitmq?.queueName || `queue-${destName}`;
 
         beans += `
@@ -486,8 +495,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;\n`;
         const destName = normalizePropertyName(dest.destinationName);
         const urlParts = dest.destinationUrl.split(':');
         const host = urlParts[0] || 'localhost';
-        const port = urlParts[1] || '6379';
-        const password = dest.postgresql?.password || '';
+        const port = parseInt(urlParts[1]) || 6379;
 
         beans += `
     @Bean(name = "${destName}RedisConnectionFactory")
@@ -495,9 +503,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;\n`;
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
         config.setHostName("${host}");
         config.setPort(${port});
-        if (!"${password}".isEmpty()) {
-            config.setPassword("${password}");
-        }
         return new LettuceConnectionFactory(config);
     }
     
@@ -539,7 +544,6 @@ import java.net.InetSocketAddress;\n`;
     destinations.forEach(dest => {
         const destName = normalizePropertyName(dest.destinationName);
         const contactPoints = dest.destinationUrl.split(',');
-        const keyspace = dest.cassandra?.keyspace || 'default_keyspace';
 
         beans += `
     @Bean(name = "${destName}CassandraSession")
@@ -547,7 +551,6 @@ import java.net.InetSocketAddress;\n`;
         return CqlSession.builder()
             .addContactPoints(${contactPoints.map(cp => `new InetSocketAddress("${cp.trim()}", 9042)`).join(', ')})
             .withLocalDatacenter("datacenter1")
-            .withKeyspace("${keyspace}")
             .build();
     }
     
@@ -639,36 +642,42 @@ function generateDestinationClass(destination: DestinationConnectionInfo, basePa
 
     const beanName = `${propertyName}Client`;
 
-    let imports = `import org.springframework.stereotype.Component;\n`;
     let fields = '';
     let constructorParams = '';
     let constructorAssignments = '';
     let sendDataImpl = '';
+    let additionalImports = '';
     const componentAnnotation = `@Component("${beanName}")`;
 
     if (targetType === 'POSTGRESQL') {
-        imports += `import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.JdbcTemplate;\n`;
-
-        fields = `    private final JdbcTemplate jdbcTemplate;
-    private final String tableName;
-    private final String columnName;\n`;
+        additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Value;\n`;
 
         const tableName = destination.postgresql?.tableName || 'your_table';
         const columnName = destination.postgresql?.columnName || 'data_column';
 
+        fields = `    private final JdbcTemplate jdbcTemplate;
+    
+    @Value("${"$"}{app.postgresql.${propertyName}.schema:public}")
+    private String schema;
+    
+    @Value("${"$"}{app.postgresql.${propertyName}.table:${tableName}}")
+    private String tableName;
+    
+    @Value("${"$"}{app.postgresql.${propertyName}.column:${columnName}}")
+    private String columnName;\n`;
+
         constructorParams = `@Qualifier("${propertyName}JdbcTemplate") JdbcTemplate jdbcTemplate`;
-        constructorAssignments = `        this.jdbcTemplate = jdbcTemplate;
-        this.tableName = "${tableName}";
-        this.columnName = "${columnName}";`;
+        constructorAssignments = `        this.jdbcTemplate = jdbcTemplate;`;
 
         sendDataImpl = `
-        String insertSql = String.format("INSERT INTO %s (%s) VALUES (?)", tableName, columnName);
+        String insertSql = String.format("INSERT INTO %s.%s (%s) VALUES (?)", schema, tableName, columnName);
         jdbcTemplate.update(insertSql, data);
-        System.out.println("Data saved to PostgreSQL table '" + tableName + "': " + data);`;
+        System.out.println("Data saved to PostgreSQL table '" + schema + "." + tableName + "': " + data);`;
 
     } else if (targetType === 'KAFKA') {
-        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+        additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.beans.factory.annotation.Value;\n`;
 
@@ -685,47 +694,63 @@ import org.springframework.beans.factory.annotation.Value;\n`;
         System.out.println("Message sent to Kafka topic '" + topic + "': " + data);`;
 
     } else if (targetType === 'RABBITMQ') {
-        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+        additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;\n`;
 
         fields = `    private final RabbitTemplate rabbitTemplate;
     
-    @Value("${"$"}{spring.rabbitmq.${propertyName}.queue:default-queue}")
-    private String queueName;\n`;
+    @Value("${"$"}{app.rabbitmq.${propertyName}.queue:default-queue}")
+    private String queueName;
+    
+    @Value("${"$"}{app.rabbitmq.${propertyName}.exchange:}")
+    private String exchangeName;
+    
+    @Value("${"$"}{app.rabbitmq.${propertyName}.routing-key:}")
+    private String routingKey;\n`;
 
         constructorParams = `@Qualifier("${propertyName}RabbitTemplate") RabbitTemplate rabbitTemplate`;
         constructorAssignments = `        this.rabbitTemplate = rabbitTemplate;`;
 
         sendDataImpl = `
-        rabbitTemplate.convertAndSend(queueName, data);
-        System.out.println("Message sent to RabbitMQ queue '" + queueName + "': " + data);`;
+        if (exchangeName != null && !exchangeName.isEmpty()) {
+            rabbitTemplate.convertAndSend(exchangeName, routingKey, data);
+        } else {
+            rabbitTemplate.convertAndSend(queueName, data);
+        }
+        System.out.println("Message sent to RabbitMQ: " + data);`;
 
     } else if (targetType === 'REDIS') {
-        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+        additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.beans.factory.annotation.Value;\n`;
 
         fields = `    private final RedisTemplate<String, String> redisTemplate;
     
-    @Value("${"$"}{spring.redis.${propertyName}.key:default-key}")
-    private String key;\n`;
+    @Value("${"$"}{app.redis.${propertyName}.key:default-key}")
+    private String key;
+    
+    @Value("${"$"}{app.redis.${propertyName}.ttl:0}")
+    private int ttl;\n`;
 
         constructorParams = `@Qualifier("${propertyName}RedisTemplate") RedisTemplate<String, String> redisTemplate`;
         constructorAssignments = `        this.redisTemplate = redisTemplate;`;
 
         sendDataImpl = `
         redisTemplate.opsForValue().set(key, data);
+        if (ttl > 0) {
+            redisTemplate.expire(key, java.time.Duration.ofSeconds(ttl));
+        }
         System.out.println("Data stored in Redis with key '" + key + "': " + data);`;
 
     } else if (targetType === 'CASSANDRA') {
-        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+        additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.beans.factory.annotation.Value;\n`;
 
         fields = `    private final CassandraTemplate cassandraTemplate;
     
-    @Value("${"$"}{spring.data.cassandra.${propertyName}.table:default_table}")
+    @Value("${"$"}{app.cassandra.${propertyName}.table:default_table}")
     private String table;\n`;
 
         constructorParams = `@Qualifier("${propertyName}CassandraTemplate") CassandraTemplate cassandraTemplate`;
@@ -743,7 +768,7 @@ import org.springframework.beans.factory.annotation.Value;\n`;
     }
 
     return `${packageDeclaration}
-${imports}
+${additionalImports}
 ${componentAnnotation}
 public class ${className} {
 ${fields}
