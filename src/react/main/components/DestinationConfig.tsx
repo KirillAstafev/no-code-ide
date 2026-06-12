@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextInput, Select } from '@gravity-ui/uikit';
+import { Text, TextInput } from '@gravity-ui/uikit';
 
 interface DestinationConfigProps {
     destinationName: string;
@@ -29,33 +29,8 @@ export const DestinationConfig: React.FC<DestinationConfigProps> = ({
     topic,
     onUpdate,
 }) => {
-    const handleTargetTypeChange = (value: string[]) => {
-        const newType = value[0] as string;
-        onUpdate({
-            targetType: newType,
-            databaseName: newType === 'POSTGRESQL' ? databaseName : undefined,
-            schemaName: newType === 'POSTGRESQL' ? schemaName : undefined,
-            tableName: newType === 'POSTGRESQL' ? tableName : undefined,
-            columnName: newType === 'POSTGRESQL' ? columnName : undefined,
-            topic: newType === 'KAFKA' ? topic : undefined,
-        });
-    };
-
     return (
         <div style={{ padding: '12px', borderBottom: '1px solid var(--g-color-line-generic)' }}>
-            <Text variant="body-2" style={{ fontWeight: 500, marginBottom: '8px' }}>
-                {destinationName}
-            </Text>
-            <Select
-                value={[targetType]}
-                options={[
-                    { content: 'Не выбрано', value: '' },
-                    { content: 'PostgreSQL', value: 'POSTGRESQL' },
-                    { content: 'Kafka', value: 'KAFKA' },
-                ]}
-                onUpdate={handleTargetTypeChange}
-                size="s"
-            />
             {targetType === 'POSTGRESQL' && (
                 <>
                     <TextInput
