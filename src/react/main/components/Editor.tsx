@@ -126,7 +126,7 @@ function Editor() {
     );
 
     const handleModalConfirm = useCallback(
-        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationConnections: { destinationName: string; settings: { targetType: string; databaseName?: string; schemaName?: string; tableName?: string; columnName?: string; topic?: string } }[]) => {
+        (sourceConnections: { sourceName: string; commandName: string; commandParams: Record<string, string | number | boolean> }[], destinationConnections: { destinationName: string; settings: { targetType: string; databaseName?: string; schemaName?: string; tableName?: string; columnName?: string; topic?: string; username?: string; password?: string; queueName?: string; exchangeName?: string; routingKey?: string; key?: string; ttl?: number; keyspace?: string; table?: string; partitionKey?: string; postgresql?: any; kafka?: any; rabbitmq?: any; redis?: any; cassandra?: any } }[]) => {
             if (!currentModule || !project) return;
 
             const moduleIndex = project.modules.findIndex(m => m.name === currentModule.name);
@@ -153,11 +153,31 @@ function Editor() {
                         return {
                             ...d,
                             targetType: newDestination.settings.targetType,
-                            databaseName: newDestination.settings.databaseName,
-                            schemaName: newDestination.settings.schemaName,
-                            tableName: newDestination.settings.tableName,
-                            columnName: newDestination.settings.columnName,
-                            topic: newDestination.settings.topic,
+                            postgresql: {
+                                databaseName: newDestination.settings.databaseName,
+                                schemaName: newDestination.settings.schemaName,
+                                tableName: newDestination.settings.tableName,
+                                columnName: newDestination.settings.columnName,
+                                username: newDestination.settings.username,
+                                password: newDestination.settings.password,
+                            },
+                            kafka: {
+                                topic: newDestination.settings.topic,
+                            },
+                            rabbitmq: {
+                                queueName: newDestination.settings.queueName,
+                                exchangeName: newDestination.settings.exchangeName,
+                                routingKey: newDestination.settings.routingKey,
+                            },
+                            redis: {
+                                key: newDestination.settings.key,
+                                ttl: newDestination.settings.ttl,
+                            },
+                            cassandra: {
+                                keyspace: newDestination.settings.keyspace,
+                                table: newDestination.settings.table,
+                                partitionKey: newDestination.settings.partitionKey,
+                            },
                         };
                     }
                     return d;

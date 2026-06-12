@@ -1,10 +1,10 @@
-import React, {useState} from 'react';
-import { Modal, Text, TextInput, Button } from '@gravity-ui/uikit';
+import React, { useState } from 'react';
+import { Modal, Text, TextInput, Button, Select } from '@gravity-ui/uikit';
 
 interface AddDestinationPageProps {
     open: boolean;
     onClose: () => void;
-    onAdd: (name: string, url: string, dependency: ExternalDependency) => void;
+    onAdd: (name: string, url: string, dependency: ExternalDependency, targetType: string) => void;
     dependency: ExternalDependency;
 }
 
@@ -16,7 +16,16 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
 }) => {
     const [name, setName] = useState('');
     const [url, setUrl] = useState('');
-    const [errors, setErrors] = useState<{name?: string; url?: string}>({});
+    const [targetType, setTargetType] = useState('');
+    const [errors, setErrors] = useState<{ name?: string; url?: string }>({});
+
+    const targetTypeOptions = [
+        { content: 'PostgreSQL', value: 'POSTGRESQL' },
+        { content: 'Kafka', value: 'KAFKA' },
+        { content: 'RabbitMQ', value: 'RABBITMQ' },
+        { content: 'Redis', value: 'REDIS' },
+        { content: 'Cassandra', value: 'CASSANDRA' },
+    ];
 
     const validateField = (field: string, value: string): string | null => {
         switch (field) {
@@ -48,21 +57,22 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
     const handleAdd = () => {
         const nameError = validateField('name', name);
         const urlError = validateField('url', url);
-        
+
         const newErrors = {
             name: nameError || undefined,
             url: urlError || undefined,
         };
-        
+
         setErrors(newErrors);
-        
-        if (nameError || urlError) {
+
+        if (nameError || urlError || !targetType) {
             return;
         }
 
-        onAdd(name.trim(), url, dependency);
+        onAdd(name.trim(), url, dependency, targetType);
         setName('');
         setUrl('');
+        setTargetType('');
         setErrors({});
         onClose();
     };
@@ -77,7 +87,13 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
         setErrors({});
     };
 
-    const isSaveEnabled = Object.keys(errors).length === 0;
+    const handleTargetTypeChange = (value: string | string[]) => {
+        const newTargetType = Array.isArray(value) ? value[0] : value;
+        setTargetType(newTargetType);
+        setErrors({});
+    };
+
+    const isSaveEnabled = Object.keys(errors).length === 0 && targetType !== '';
 
     return (
         <Modal open={open} onClose={onClose}>
@@ -95,7 +111,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                             value={name}
                             onUpdate={handleNameChange}
                             hasClear
-                            style={{ width: '100%', marginBottom: '12px', marginTop:'12px' }}
+                            style={{ width: '100%', marginBottom: '12px', marginTop: '12px' }}
                             autoFocus
                             size="l"
                         />
@@ -123,6 +139,18 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                                 {errors.url}
                             </Text>
                         )}
+                    </div>
+
+                    <div style={{ marginBottom: '12px' }}>
+                        <Text variant="body-2" style={{ marginBottom: '6px' }}>
+                            Тип приёмника
+                        </Text>
+                        <Select
+                            value={targetType ? [targetType] : []}
+                            options={targetTypeOptions}
+                            onUpdate={handleTargetTypeChange}
+                            size="s"
+                        />
                     </div>
                 </div>
 

@@ -1,126 +1,6 @@
 import path from 'path';
 import fs from 'fs/promises';
 
-interface Project {
-    name: string;
-    location: string;
-    modules: Module[];
-    sources: DataSource[];
-    destinations: DataDestination[];
-    dependencies: ExternalDependency[];
-    schema: Schema;
-}
-
-interface Module {
-    name: string;
-    location: string;
-    sources: DataSource[];
-    destinations: DataDestination[];
-}
-
-interface DataSource {
-    name: string;
-    ipAddress: string;
-    tcpPort: number;
-    command?: DataSourceCommand;
-    commandParams?: Record<string, string | number | boolean>;
-}
-
-interface DataDestination {
-    name: string;
-    url: string;
-    dependency: ExternalDependency;
-    targetType?: string;
-    databaseName?: string;
-    schemaName?: string;
-    tableName?: string;
-    columnName?: string;
-    topic?: string;
-}
-
-interface ExternalDependency {
-    name: string;
-    category: string;
-    description: string;
-    dependencyCode: string;
-}
-
-interface Schema {
-    nodes?: SchemaNode[];
-    edges?: SchemaEdge[];
-    metadata?: {
-        zoom?: number;
-        offsetX?: number;
-        offsetY?: number;
-        layout?: 'dagre' | 'force' | 'grid';
-        [key: string]: any;
-    };
-}
-
-interface SchemaNode {
-    id: string;
-    type: 'module' | 'source' | 'destination';
-    label: string;
-    caption?: string;
-    x?: number;
-    y?: number;
-    data: Module | DataSource | DataDestination;
-}
-
-interface SchemaEdge {
-    id: string;
-    sourceBlockId: string;
-    targetBlockId: string;
-    label?: string;
-    style?: 'solid' | 'dashed';
-    arrowhead?: 'none' | 'arrow' | 'dot';
-}
-
-interface GeneratedProjectInfo {
-    projectName: string;
-    mainPackage: string;
-    mainClassName: string;
-    modules: ModuleInfo[];
-    sources: DataSourceInfo[];
-    destinations: DestinationConnectionInfo[];
-}
-
-interface ModuleInfo {
-    id: string;
-    name: string;
-    sourceConnections: SourceConnectionInfo[];
-    destinationConnections: DestinationConnectionInfo[];
-}
-
-interface DataSourceInfo {
-    id: string;
-    name: string;
-    ipAddress: string;
-    tcpPort: number;
-    commandName: string;
-}
-
-interface DestinationConnectionInfo {
-    id: string;
-    destinationName: string;
-    destinationUrl: string;
-    className: string;
-    targetType: string;
-    databaseName?: string;
-    schemaName?: string;
-    tableName?: string;
-    columnName?: string;
-    topic?: string;
-}
-
-interface SourceConnectionInfo {
-    id: string;
-    sourceName: string;
-    sourceIpAddress: string;
-    sourceTcpPort: number;
-    commandName: string;
-}
-
 function generateJavaClassNameFromId(id: string): string {
     return normalizeIdentifier(id.charAt(0).toUpperCase() + id.slice(1));
 }
@@ -133,11 +13,121 @@ function normalizeIdentifier(str: string): string {
     return str.replace(/[^a-zA-Z0-9]/g, '').replace(/^[0-9]+/, '');
 }
 
+function normalizePropertyName(str: string): string {
+    const normalized = str.replace(/[^a-zA-Z0-9]/g, '').replace(/^[0-9]+/, '');
+    return normalized.charAt(0).toLowerCase() + normalized.slice(1);
+}
+
+function generateApplicationProperties(
+    project: Project,
+    sources: DataSourceInfo[],
+    destinations: DestinationConnectionInfo[]
+): string {
+    const lines: string[] = [];
+
+    // Настройки источников данных
+    if (sources.length > 0) {
+        sources.forEach((source) => {
+            const sourceName = normalizePropertyName(source.name);
+            lines.push(`app.sources.${sourceName}.name=${source.name}`);
+            lines.push(`app.sources.${sourceName}.ipAddress=${source.ipAddress}`);
+            lines.push(`app.sources.${sourceName}.tcpPort=${source.tcpPort}`);
+            lines.push(`app.sources.${sourceName}.commandName=${source.commandName}`);
+            lines.push('');
+        });
+    }
+
+    // Настройки приёмников данных
+    if (destinations.length > 0) {
+        destinations.forEach((destination) => {
+            const destName = normalizePropertyName(destination.destinationName);
+
+            if (destination.targetType === 'POSTGRESQL') {
+                const pgSettings = destination.postgresql;
+                const host = pgSettings?.host || 'localhost';
+                const port = pgSettings?.port || 5432;
+                const database = pgSettings?.databaseName || 'postgres';
+                const username = pgSettings?.username || 'postgres';
+                const password = pgSettings?.password || '';
+
+                lines.push(`spring.datasource.${destName}.url=jdbc:postgresql://${host}:${port}/${database}`);
+                lines.push(`spring.datasource.${destName}.username=${username}`);
+                lines.push(`spring.datasource.${destName}.password=${password}`);
+                lines.push(`spring.datasource.${destName}.driver-class-name=org.postgresql.Driver`);
+                lines.push('');
+
+            } else if (destination.targetType === 'KAFKA') {
+                const kafkaSettings = destination.kafka;
+                const bootstrapServers = kafkaSettings?.bootstrapServers || 'localhost:9092';
+
+                lines.push(`spring.kafka.${destName}.bootstrap-servers=${bootstrapServers}`);
+
+                if (kafkaSettings?.groupId) {
+                    lines.push(`spring.kafka.${destName}.consumer.group-id=${kafkaSettings.groupId}`);
+                }
+
+                if (kafkaSettings?.clientId) {
+                    lines.push(`spring.kafka.${destName}.client-id=${kafkaSettings.clientId}`);
+                }
+
+                if (kafkaSettings?.topic) {
+                    lines.push(`app.kafka.${destName}.topic=${kafkaSettings.topic}`);
+                }
+
+                lines.push('');
+
+            } else if (destination.targetType === 'RABBITMQ') {
+                const urlParts = destination.destinationUrl.split(':');
+                const host = urlParts[0] || 'localhost';
+                const port = urlParts[1] || '5672';
+
+                lines.push(`spring.rabbitmq.${destName}.host=${host}`);
+                lines.push(`spring.rabbitmq.${destName}.port=${port}`);
+
+                if (destination.rabbitmq?.queueName) {
+                    lines.push(`spring.rabbitmq.${destName}.queue=${destination.rabbitmq.queueName}`);
+                }
+
+                lines.push('');
+
+            } else if (destination.targetType === 'REDIS') {
+                const urlParts = destination.destinationUrl.split(':');
+                const host = urlParts[0] || 'localhost';
+                const port = urlParts[1] || '6379';
+
+                lines.push(`spring.redis.${destName}.host=${host}`);
+                lines.push(`spring.redis.${destName}.port=${port}`);
+
+                if (destination.redis?.key) {
+                    lines.push(`spring.redis.${destName}.key=${destination.redis.key}`);
+                }
+
+                lines.push('');
+
+            } else if (destination.targetType === 'CASSANDRA') {
+                const contactPoints = destination.destinationUrl.split(',');
+
+                lines.push(`spring.data.cassandra.${destName}.contact-points=${contactPoints.join(',')}`);
+                lines.push(`spring.data.cassandra.${destName}.port=9042`);
+                lines.push(`spring.data.cassandra.${destName}.keyspace=${destination.cassandra?.keyspace || 'default_keyspace'}`);
+
+                if (destination.cassandra?.table) {
+                    lines.push(`spring.data.cassandra.${destName}.table=${destination.cassandra.table}`);
+                }
+
+                lines.push('');
+            }
+        });
+    }
+
+    return lines.join('\n');
+}
+
 export async function findMainClassName(basePath: string): Promise<string> {
     try {
         const javaFiles = await fs.readdir(path.join(basePath, 'src', 'main', 'java'), { recursive: true });
         for (const file of javaFiles) {
-            if (typeof file === 'string' && file.endsWith('Application.java')) {
+            if (file.endsWith('Application.java')) {
                 const filePath = path.join(basePath, 'src', 'main', 'java', file);
                 const content = await fs.readFile(filePath, 'utf-8');
                 const match = content.match(/package\s+([a-zA-Z0-9_.]+);/);
@@ -161,7 +151,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
     let sourceCounter = 0;
     let destinationCounter = 0;
 
-    project.sources.forEach((source, index) => {
+    project.sources.forEach((source) => {
         sourceCounter++;
         const sourceId = generateId('Source', sourceCounter);
         sources.push({
@@ -177,7 +167,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
         const moduleId = generateId('Module', moduleIndex + 1);
 
         const sourceConnections: SourceConnectionInfo[] = [];
-        module.sources.forEach((source, sourceIndex) => {
+        module.sources.forEach((source) => {
             sourceCounter++;
             const sourceId = generateId('Source', sourceCounter);
             const sourceName = normalizeIdentifier(source.name);
@@ -191,21 +181,21 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
         });
 
         const destinationConnections: DestinationConnectionInfo[] = [];
-        module.destinations.forEach((destination, destinationIndex) => {
+        module.destinations.forEach((destination) => {
             destinationCounter++;
             const destinationId = generateId('Destination', destinationCounter);
-            
+
             destinationConnections.push({
                 id: destinationId,
                 destinationName: normalizeIdentifier(destination.name),
                 destinationUrl: destination.url,
                 className: generateJavaClassNameFromId(destinationId) + 'Client',
                 targetType: destination.targetType || '',
-                databaseName: destination.databaseName,
-                schemaName: destination.schemaName,
-                tableName: destination.tableName,
-                columnName: destination.columnName,
-                topic: destination.topic,
+                postgresql: destination.postgresql,
+                kafka: destination.kafka,
+                rabbitmq: destination.rabbitmq,
+                redis: destination.redis,
+                cassandra: destination.cassandra,
             });
         });
 
@@ -229,11 +219,11 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
             destinationUrl: d.url,
             className: generateJavaClassNameFromId(`Destination${i + 1}`) + 'Client',
             targetType: d.targetType || '',
-            databaseName: d.databaseName,
-            schemaName: d.schemaName,
-            tableName: d.tableName,
-            columnName: d.columnName,
-            topic: d.topic,
+            postgresql: d.postgresql,
+            kafka: d.kafka,
+            rabbitmq: d.rabbitmq,
+            redis: d.redis,
+            cassandra: d.cassandra,
         })),
     };
 }
@@ -243,15 +233,30 @@ export async function generateJavaFiles(
     generatedProjectInfo: GeneratedProjectInfo,
     outputDir: string
 ): Promise<void> {
-    const { modules, sources, destinations, mainClassName, mainPackage } = generatedProjectInfo;
+    const { modules, sources, destinations, mainPackage } = generatedProjectInfo;
     const basePackage = mainPackage;
 
     const javaBaseDir = path.join(outputDir, 'src', 'main', 'java', ...basePackage.split('.'));
     const resourcesDir = path.join(outputDir, 'src', 'main', 'resources');
+    const configDir = path.join(javaBaseDir, 'config');
 
     await fs.mkdir(javaBaseDir, { recursive: true });
     await fs.mkdir(resourcesDir, { recursive: true });
+    await fs.mkdir(configDir, { recursive: true });
 
+    // Генерация application.properties
+    const applicationPropertiesPath = path.join(resourcesDir, 'application.properties');
+    const applicationPropertiesContent = generateApplicationProperties(project, sources, destinations);
+    await fs.writeFile(applicationPropertiesPath, applicationPropertiesContent, 'utf-8');
+
+    // Генерация конфигурационных классов для каждого типа приёмника
+    const configClasses = generateConfigurationClasses(destinations, basePackage);
+    for (const [fileName, content] of Object.entries(configClasses)) {
+        const configPath = path.join(configDir, fileName);
+        await fs.writeFile(configPath, content, 'utf-8');
+    }
+
+    // Генерация классов для приёмников
     const destinationPromises = destinations.map(destination => {
         const destinationPath = path.join(javaBaseDir, destination.className + '.java');
         return fs.writeFile(destinationPath, generateDestinationClass(destination, basePackage), 'utf-8');
@@ -259,6 +264,7 @@ export async function generateJavaFiles(
 
     await Promise.all(destinationPromises);
 
+    // Генерация сервисных классов модулей
     const modulePromises = modules.flatMap(module => [
         (function() {
             const serviceClassName = generateJavaClassNameFromId(module.id) + 'Service';
@@ -270,53 +276,356 @@ export async function generateJavaFiles(
     await Promise.all(modulePromises);
 }
 
+function generateConfigurationClasses(
+    destinations: DestinationConnectionInfo[],
+    basePackage: string
+): Record<string, string> {
+    const configs: Record<string, string> = {};
+
+    // Группируем приёмники по типу
+    const postgresqlDests = destinations.filter(d => d.targetType === 'POSTGRESQL');
+    if (postgresqlDests.length > 0) {
+        configs['PostgreSQLConfig.java'] = generatePostgreSQLConfig(postgresqlDests, basePackage);
+    }
+
+    const kafkaDests = destinations.filter(d => d.targetType === 'KAFKA');
+    if (kafkaDests.length > 0) {
+        configs['KafkaConfig.java'] = generateKafkaConfig(kafkaDests, basePackage);
+    }
+
+    const rabbitmqDests = destinations.filter(d => d.targetType === 'RABBITMQ');
+    if (rabbitmqDests.length > 0) {
+        configs['RabbitMQConfig.java'] = generateRabbitMQConfig(rabbitmqDests, basePackage);
+    }
+
+    const redisDests = destinations.filter(d => d.targetType === 'REDIS');
+    if (redisDests.length > 0) {
+        configs['RedisConfig.java'] = generateRedisConfig(redisDests, basePackage);
+    }
+
+    const cassandraDests = destinations.filter(d => d.targetType === 'CASSANDRA');
+    if (cassandraDests.length > 0) {
+        configs['CassandraConfig.java'] = generateCassandraConfig(cassandraDests, basePackage);
+    }
+
+    return configs;
+}
+
+function generatePostgreSQLConfig(
+    destinations: DestinationConnectionInfo[],
+    basePackage: string
+): string {
+    const packageDeclaration = `package ${basePackage}.config;\n`;
+
+    const imports = `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
+import javax.sql.DataSource;\n`;
+
+    let beans = '';
+
+    destinations.forEach(dest => {
+        const destName = normalizePropertyName(dest.destinationName);
+        const pgSettings = dest.postgresql;
+        const host = pgSettings?.host || 'localhost';
+        const port = pgSettings?.port || 5432;
+        const database = pgSettings?.databaseName || 'postgres';
+        const username = pgSettings?.username || 'postgres';
+        const password = pgSettings?.password || '';
+
+        beans += `
+    @Bean(name = "${destName}DataSource")
+    public DataSource ${destName}DataSource() {
+        return DataSourceBuilder.create()
+            .url("jdbc:postgresql://${host}:${port}/${database}")
+            .username("${username}")
+            .password("${password}")
+            .driverClassName("org.postgresql.Driver")
+            .build();
+    }
+    
+    @Bean(name = "${destName}JdbcTemplate")
+    public JdbcTemplate ${destName}JdbcTemplate(
+            @Qualifier("${destName}DataSource") DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+`;
+    });
+
+    return `${packageDeclaration}
+${imports}
+@Configuration
+public class PostgreSQLConfig {${beans}
+}
+`;
+}
+
+function generateKafkaConfig(
+    destinations: DestinationConnectionInfo[],
+    basePackage: string
+): string {
+    const packageDeclaration = `package ${basePackage}.config;\n`;
+
+    const imports = `import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import java.util.HashMap;
+import java.util.Map;\n`;
+
+    let beans = '';
+
+    destinations.forEach(dest => {
+        const destName = normalizePropertyName(dest.destinationName);
+        const kafkaSettings = dest.kafka;
+        const bootstrapServers = kafkaSettings?.bootstrapServers || 'localhost:9092';
+
+        beans += `
+    @Bean(name = "${destName}ProducerFactory")
+    public ProducerFactory<String, String> ${destName}ProducerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "${bootstrapServers}");
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
+        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+    
+    @Bean(name = "${destName}KafkaTemplate")
+    public KafkaTemplate<String, String> ${destName}KafkaTemplate(
+            @Qualifier("${destName}ProducerFactory") ProducerFactory<String, String> producerFactory) {
+        return new KafkaTemplate<>(producerFactory);
+    }
+`;
+    });
+
+    return `${packageDeclaration}
+${imports}
+@Configuration
+public class KafkaConfig {${beans}
+}
+`;
+}
+
+function generateRabbitMQConfig(
+    destinations: DestinationConnectionInfo[],
+    basePackage: string
+): string {
+    const packageDeclaration = `package ${basePackage}.config;\n`;
+
+    const imports = `import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;\n`;
+
+    let beans = '';
+
+    destinations.forEach(dest => {
+        const destName = normalizePropertyName(dest.destinationName);
+        const urlParts = dest.destinationUrl.split(':');
+        const host = urlParts[0] || 'localhost';
+        const port = urlParts[1] || '5672';
+        const queueName = dest.rabbitmq?.queueName || `queue-${destName}`;
+
+        beans += `
+    @Bean(name = "${destName}ConnectionFactory")
+    public ConnectionFactory ${destName}ConnectionFactory() {
+        CachingConnectionFactory connectionFactory = new CachingConnectionFactory("${host}", ${port});
+        return connectionFactory;
+    }
+    
+    @Bean(name = "${destName}RabbitTemplate")
+    public RabbitTemplate ${destName}RabbitTemplate(
+            @Qualifier("${destName}ConnectionFactory") ConnectionFactory connectionFactory) {
+        return new RabbitTemplate(connectionFactory);
+    }
+    
+    @Bean(name = "${destName}Queue")
+    public Queue ${destName}Queue() {
+        return new Queue("${queueName}", true);
+    }
+`;
+    });
+
+    return `${packageDeclaration}
+${imports}
+@Configuration
+public class RabbitMQConfig {${beans}
+}
+`;
+}
+
+function generateRedisConfig(
+    destinations: DestinationConnectionInfo[],
+    basePackage: string
+): string {
+    const packageDeclaration = `package ${basePackage}.config;\n`;
+
+    const imports = `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;\n`;
+
+    let beans = '';
+
+    destinations.forEach(dest => {
+        const destName = normalizePropertyName(dest.destinationName);
+        const urlParts = dest.destinationUrl.split(':');
+        const host = urlParts[0] || 'localhost';
+        const port = urlParts[1] || '6379';
+        const password = dest.postgresql?.password || '';
+
+        beans += `
+    @Bean(name = "${destName}RedisConnectionFactory")
+    public LettuceConnectionFactory ${destName}RedisConnectionFactory() {
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+        config.setHostName("${host}");
+        config.setPort(${port});
+        if (!"${password}".isEmpty()) {
+            config.setPassword("${password}");
+        }
+        return new LettuceConnectionFactory(config);
+    }
+    
+    @Bean(name = "${destName}RedisTemplate")
+    public RedisTemplate<String, String> ${destName}RedisTemplate(
+            @Qualifier("${destName}RedisConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        return template;
+    }
+`;
+    });
+
+    return `${packageDeclaration}
+${imports}
+@Configuration
+public class RedisConfig {${beans}
+}
+`;
+}
+
+function generateCassandraConfig(
+    destinations: DestinationConnectionInfo[],
+    basePackage: string
+): string {
+    const packageDeclaration = `package ${basePackage}.config;\n`;
+
+    const imports = `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.cassandra.core.CassandraTemplate;
+import com.datastax.oss.driver.api.core.CqlSession;
+import java.net.InetSocketAddress;\n`;
+
+    let beans = '';
+
+    destinations.forEach(dest => {
+        const destName = normalizePropertyName(dest.destinationName);
+        const contactPoints = dest.destinationUrl.split(',');
+        const keyspace = dest.cassandra?.keyspace || 'default_keyspace';
+
+        beans += `
+    @Bean(name = "${destName}CassandraSession")
+    public CqlSession ${destName}CassandraSession() {
+        return CqlSession.builder()
+            .addContactPoints(${contactPoints.map(cp => `new InetSocketAddress("${cp.trim()}", 9042)`).join(', ')})
+            .withLocalDatacenter("datacenter1")
+            .withKeyspace("${keyspace}")
+            .build();
+    }
+    
+    @Bean(name = "${destName}CassandraTemplate")
+    public CassandraTemplate ${destName}CassandraTemplate(
+            @Qualifier("${destName}CassandraSession") CqlSession session) {
+        return new CassandraTemplate(session);
+    }
+`;
+    });
+
+    return `${packageDeclaration}
+${imports}
+@Configuration
+public class CassandraConfig {${beans}
+}
+`;
+}
+
 function generateModuleServiceClass(module: ModuleInfo, basePackage: string): string {
     const className = generateJavaClassNameFromId(module.id) + 'Service';
     const packageDeclaration = `package ${basePackage};\n`;
 
     const imports = new Set<string>();
-    imports.add('import org.springframework.stereotype.Component;');
+    imports.add('import org.springframework.stereotype.Service;');
+    imports.add('import org.springframework.beans.factory.annotation.Qualifier;');
 
     const importsStr = Array.from(imports).join('\n') + '\n\n';
 
     let fields = '';
-    module.destinationConnections.forEach(destination => {
-        fields += `    private final ${destination.className} ${normalizeIdentifier(destination.destinationName.toLowerCase())}Client;\n`;
-    });
-
     let constructorParams = '';
+    let constructorAssignments = '';
+
     module.destinationConnections.forEach((destination, index) => {
-        if (index > 0) constructorParams += ', ';
-        constructorParams += `${destination.className} ${normalizeIdentifier(destination.destinationName.toLowerCase())}Client`;
+        const fieldName = `${normalizePropertyName(destination.destinationName.toLowerCase())}Client`;
+        const qualifierName = normalizePropertyName(destination.destinationName);
+        const beanName = `${qualifierName}Client`;
+
+        fields += `    private final ${destination.className} ${fieldName};\n`;
+
+        if (index > 0) {
+            constructorParams += ', ';
+            constructorAssignments += '\n';
+        }
+        constructorParams += `@Qualifier("${beanName}") ${destination.className} ${fieldName}`;
+        constructorAssignments += `        this.${fieldName} = ${fieldName};`;
     });
 
     let methods = '';
+
     module.sourceConnections.forEach(source => {
+        const methodName = `processDataFrom${generateJavaClassNameFromId(source.id)}`;
         methods += `
-    public void processDataFrom${generateJavaClassNameFromId(source.id)}() {
+    public void ${methodName}() {
         System.out.println("${source.commandName} - обработка данных от источника ${normalizeIdentifier(source.sourceName)}");
+        // TODO: Реализовать логику обработки данных
     }
 `;
     });
 
     module.destinationConnections.forEach(destination => {
-        const methodName = 'sendData';
-        const dataVar = '"Данные из модуля"';
+        const methodName = `sendDataTo${generateJavaClassNameFromId(destination.id)}`;
+        const clientField = `${normalizePropertyName(destination.destinationName.toLowerCase())}Client`;
+
         methods += `
-    public void sendDataTo${generateJavaClassNameFromId(destination.id)}() {
-        System.out.println("Отправка данных в приёмник ${destination.destinationName} (" + "${destination.targetType || 'UNKNOWN'}" + ")");
-        ${normalizeIdentifier(destination.destinationName.toLowerCase())}Client.${methodName}(${dataVar});
+    public void ${methodName}(String data) {
+        ${clientField}.sendData(data);
     }
 `;
     });
 
     return `${packageDeclaration}${importsStr}
-@Component
+@Service
 public class ${className} {
-${fields}    
+${fields}
+    
     public ${className}(${constructorParams}) {
-        System.out.println("Инициализация модуля ${normalizeIdentifier(module.name)}");
-${module.destinationConnections.map((dest, i) => `        this.${normalizeIdentifier(dest.destinationName.toLowerCase())}Client = ${normalizeIdentifier(dest.destinationName.toLowerCase())}Client;`).join('\n')}
+${constructorAssignments}
     }
 ${methods}}
 `;
@@ -326,63 +635,125 @@ function generateDestinationClass(destination: DestinationConnectionInfo, basePa
     const className = destination.className;
     const packageDeclaration = `package ${basePackage};\n`;
     const targetType = destination.targetType || 'UNKNOWN';
+    const propertyName = normalizePropertyName(destination.destinationName);
 
-    let extraFields = '';
-    let extraMethods = '';
+    const beanName = `${propertyName}Client`;
+
+    let imports = `import org.springframework.stereotype.Component;\n`;
+    let fields = '';
+    let constructorParams = '';
+    let constructorAssignments = '';
+    let sendDataImpl = '';
+    const componentAnnotation = `@Component("${beanName}")`;
 
     if (targetType === 'POSTGRESQL') {
-        const databaseName = destination.databaseName || 'default_db';
-        const schemaName = destination.schemaName || 'public';
-        const tableName = destination.tableName || 'default_table';
-        const columnName = destination.columnName || 'data';
+        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;\n`;
 
-        extraFields = `    private static final String DATABASE_NAME = "${databaseName}";
-    private static final String SCHEMA_NAME = "${schemaName}";
-    private static final String TABLE_NAME = "${tableName}";
-    private static final String COLUMN_NAME = "${columnName}";
+        fields = `    private final JdbcTemplate jdbcTemplate;
+    private final String tableName;
+    private final String columnName;\n`;
 
-    private static final String URL = "${destination.destinationUrl}";
-`;
+        const tableName = destination.postgresql?.tableName || 'your_table';
+        const columnName = destination.postgresql?.columnName || 'data_column';
 
-        extraMethods = `
-    public void sendBatchData(java.util.List<String> dataList) {
-        System.out.println("Отправка пакета данных в PostgreSQL БД: " + DATABASE_NAME + ", схема: " + SCHEMA_NAME + ", таблица: " + TABLE_NAME);
-        dataList.forEach(data -> System.out.println("Данные в столбце " + COLUMN_NAME + ": " + data));
-    }
-`;
+        constructorParams = `@Qualifier("${propertyName}JdbcTemplate") JdbcTemplate jdbcTemplate`;
+        constructorAssignments = `        this.jdbcTemplate = jdbcTemplate;
+        this.tableName = "${tableName}";
+        this.columnName = "${columnName}";`;
+
+        sendDataImpl = `
+        String insertSql = String.format("INSERT INTO %s (%s) VALUES (?)", tableName, columnName);
+        jdbcTemplate.update(insertSql, data);
+        System.out.println("Data saved to PostgreSQL table '" + tableName + "': " + data);`;
+
     } else if (targetType === 'KAFKA') {
-        const topic = destination.topic || 'default-topic';
+        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.beans.factory.annotation.Value;\n`;
 
-        extraFields = `    private static final String TOPIC = "${topic}";
-    private static final String BOOTSTRAP_SERVERS = "${destination.destinationUrl}";
-`;
+        fields = `    private final KafkaTemplate<String, String> kafkaTemplate;
+    
+    @Value("${"$"}{app.kafka.${propertyName}.topic:default-topic}")
+    private String topic;\n`;
 
-        extraMethods = `
-    public void sendMessage(String message) {
-        System.out.println("Отправка сообщения в Kafka topic: " + TOPIC + " на сервер: " + BOOTSTRAP_SERVERS);
-        System.out.println("Сообщение: " + message);
-    }
+        constructorParams = `@Qualifier("${propertyName}KafkaTemplate") KafkaTemplate<String, String> kafkaTemplate`;
+        constructorAssignments = `        this.kafkaTemplate = kafkaTemplate;`;
 
-    public void sendBatchMessages(java.util.List<String> messages) {
-        System.out.println("Отправка пакета сообщений в Kafka topic: " + TOPIC);
-        messages.forEach(msg -> System.out.println("Сообщение: " + msg));
-    }
-`;
+        sendDataImpl = `
+        kafkaTemplate.send(topic, data);
+        System.out.println("Message sent to Kafka topic '" + topic + "': " + data);`;
+
+    } else if (targetType === 'RABBITMQ') {
+        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;\n`;
+
+        fields = `    private final RabbitTemplate rabbitTemplate;
+    
+    @Value("${"$"}{spring.rabbitmq.${propertyName}.queue:default-queue}")
+    private String queueName;\n`;
+
+        constructorParams = `@Qualifier("${propertyName}RabbitTemplate") RabbitTemplate rabbitTemplate`;
+        constructorAssignments = `        this.rabbitTemplate = rabbitTemplate;`;
+
+        sendDataImpl = `
+        rabbitTemplate.convertAndSend(queueName, data);
+        System.out.println("Message sent to RabbitMQ queue '" + queueName + "': " + data);`;
+
+    } else if (targetType === 'REDIS') {
+        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Value;\n`;
+
+        fields = `    private final RedisTemplate<String, String> redisTemplate;
+    
+    @Value("${"$"}{spring.redis.${propertyName}.key:default-key}")
+    private String key;\n`;
+
+        constructorParams = `@Qualifier("${propertyName}RedisTemplate") RedisTemplate<String, String> redisTemplate`;
+        constructorAssignments = `        this.redisTemplate = redisTemplate;`;
+
+        sendDataImpl = `
+        redisTemplate.opsForValue().set(key, data);
+        System.out.println("Data stored in Redis with key '" + key + "': " + data);`;
+
+    } else if (targetType === 'CASSANDRA') {
+        imports += `import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.cassandra.core.CassandraTemplate;
+import org.springframework.beans.factory.annotation.Value;\n`;
+
+        fields = `    private final CassandraTemplate cassandraTemplate;
+    
+    @Value("${"$"}{spring.data.cassandra.${propertyName}.table:default_table}")
+    private String table;\n`;
+
+        constructorParams = `@Qualifier("${propertyName}CassandraTemplate") CassandraTemplate cassandraTemplate`;
+        constructorAssignments = `        this.cassandraTemplate = cassandraTemplate;`;
+
+        sendDataImpl = `
+        // Создание сущности для вставки
+        // ExampleEntity entity = new ExampleEntity();
+        // entity.setData(data);
+        // cassandraTemplate.insert(entity);
+        System.out.println("Data inserted into Cassandra table '" + table + "': " + data);`;
+
     } else {
-        extraFields = `    private static final String URL = "${destination.destinationUrl}";
-`;
+        throw new Error(`Unsupported destination type: ${targetType}. Supported types: POSTGRESQL, KAFKA, RABBITMQ, REDIS, CASSANDRA`);
     }
 
     return `${packageDeclaration}
-import org.springframework.stereotype.Component;
-
-@Component
+${imports}
+${componentAnnotation}
 public class ${className} {
-${extraFields}    
-    public void sendData(String data) {
-        System.out.println("Отправка данных в " + "${destination.destinationName}" + " (" + "${targetType}" + ")");
-        System.out.println("Данные: " + data);
+${fields}
+    
+    public ${className}(${constructorParams}) {
+${constructorAssignments}
     }
-${extraMethods}}
+    
+    public void sendData(String data) {${sendDataImpl}
+    }
+}
 `;
 }

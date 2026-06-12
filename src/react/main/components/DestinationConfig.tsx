@@ -1,76 +1,184 @@
 import React from 'react';
-import { Text, TextInput } from '@gravity-ui/uikit';
+import { TextInput } from '@gravity-ui/uikit';
 
 interface DestinationConfigProps {
-    destinationName: string;
     targetType: string;
+    postgresql?: DestinationPostgresqlSettings;
+    kafka?: DestinationKafkaSettings;
+    rabbitmq?: DestinationRabbitmqSettings;
+    redis?: DestinationRedisSettings;
+    cassandra?: DestinationCassandraSettings;
+    onUpdate: (settings: {
+        targetType: string;
+        postgresql?: DestinationPostgresqlSettings;
+        kafka?: DestinationKafkaSettings;
+        rabbitmq?: DestinationRabbitmqSettings;
+        redis?: DestinationRedisSettings;
+        cassandra?: DestinationCassandraSettings;
+    }) => void;
+}
+
+interface DestinationPostgresqlSettings {
     databaseName?: string;
     schemaName?: string;
     tableName?: string;
     columnName?: string;
+    username?: string;
+    password?: string;
+}
+
+interface DestinationKafkaSettings {
     topic?: string;
-    onUpdate: (settings: {
-        targetType: string;
-        databaseName?: string;
-        schemaName?: string;
-        tableName?: string;
-        columnName?: string;
-        topic?: string;
-    }) => void;
+}
+
+interface DestinationRabbitmqSettings {
+    queueName?: string;
+    exchangeName?: string;
+    routingKey?: string;
+}
+
+interface DestinationRedisSettings {
+    key?: string;
+    ttl?: number;
+}
+
+interface DestinationCassandraSettings {
+    keyspace?: string;
+    table?: string;
+    partitionKey?: string;
 }
 
 export const DestinationConfig: React.FC<DestinationConfigProps> = ({
-    destinationName,
     targetType,
-    databaseName,
-    schemaName,
-    tableName,
-    columnName,
-    topic,
+    postgresql,
+    kafka,
+    rabbitmq,
+    redis,
+    cassandra,
     onUpdate,
 }) => {
+    const isPostgreSQL = targetType === 'POSTGRESQL';
+    const isKafka = targetType === 'KAFKA';
+    const isRabbitMQ = targetType === 'RABBITMQ';
+    const isRedis = targetType === 'REDIS';
+    const isCassandra = targetType === 'CASSANDRA';
+
     return (
         <div style={{ padding: '12px', borderBottom: '1px solid var(--g-color-line-generic)' }}>
-            {targetType === 'POSTGRESQL' && (
+            {isPostgreSQL && (
                 <>
                     <TextInput
                         placeholder="Имя базы данных"
-                        value={databaseName || ''}
-                        onChange={(e: any) => onUpdate({ targetType, databaseName: e.target.value, schemaName, tableName, columnName, topic })}
+                        value={postgresql?.databaseName || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql: { ...postgresql, databaseName: e.target.value }, kafka, rabbitmq, redis, cassandra })}
                         size="s"
                         style={{ width: '100%', marginBottom: '8px' }}
                     />
                     <TextInput
                         placeholder="Имя схемы"
-                        value={schemaName || ''}
-                        onChange={(e: any) => onUpdate({ targetType, databaseName, schemaName: e.target.value, tableName, columnName, topic })}
+                        value={postgresql?.schemaName || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql: { ...postgresql, schemaName: e.target.value }, kafka, rabbitmq, redis, cassandra })}
                         size="s"
                         style={{ width: '100%', marginBottom: '8px' }}
                     />
                     <TextInput
                         placeholder="Имя таблицы"
-                        value={tableName || ''}
-                        onChange={(e: any) => onUpdate({ targetType, databaseName, schemaName, tableName: e.target.value, columnName, topic })}
+                        value={postgresql?.tableName || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql: { ...postgresql, tableName: e.target.value }, kafka, rabbitmq, redis, cassandra })}
                         size="s"
                         style={{ width: '100%', marginBottom: '8px' }}
                     />
                     <TextInput
                         placeholder="Имя столбца"
-                        value={columnName || ''}
-                        onChange={(e: any) => onUpdate({ targetType, databaseName, schemaName, tableName, columnName: e.target.value, topic })}
+                        value={postgresql?.columnName || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql: { ...postgresql, columnName: e.target.value }, kafka, rabbitmq, redis, cassandra })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                    <TextInput
+                        placeholder="Имя пользователя"
+                        value={postgresql?.username || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql: { ...postgresql, username: e.target.value }, kafka, rabbitmq, redis, cassandra })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                    <TextInput
+                        placeholder="Пароль"
+                        type="password"
+                        value={postgresql?.password || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql: { ...postgresql, password: e.target.value }, kafka, rabbitmq, redis, cassandra })}
                         size="s"
                         style={{ width: '100%', marginBottom: '8px' }}
                     />
                 </>
             )}
-            {targetType === 'KAFKA' && (
+            {isKafka && (
                 <TextInput
                     placeholder="Имя темы (topic)"
-                    value={topic || ''}
-                    onChange={(e: any) => onUpdate({ targetType, databaseName, schemaName, tableName, columnName, topic: e.target.value })}
+                    value={kafka?.topic || ''}
+                    onChange={(e: any) => onUpdate({ targetType, postgresql, kafka: { ...kafka, topic: e.target.value }, rabbitmq, redis, cassandra })}
                     size="s"
                     style={{ width: '100%', marginBottom: '8px' }}
                 />
+            )}
+            {isRabbitMQ && (
+                <>
+                    <TextInput
+                        placeholder="Имя очереди (queue)"
+                        value={rabbitmq?.queueName || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql, kafka, rabbitmq: { ...rabbitmq, queueName: e.target.value }, redis, cassandra })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                    <TextInput
+                        placeholder="Имя exchange"
+                        value={rabbitmq?.exchangeName || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql, kafka, rabbitmq: { ...rabbitmq, exchangeName: e.target.value }, redis, cassandra })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                    <TextInput
+                        placeholder="Ключ маршрутизации (routing key)"
+                        value={rabbitmq?.routingKey || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql, kafka, rabbitmq: { ...rabbitmq, routingKey: e.target.value }, redis, cassandra })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                </>
+            )}
+            {isRedis && (
+                <TextInput
+                    placeholder="Ключ"
+                    value={redis?.key || ''}
+                    onChange={(e: any) => onUpdate({ targetType, postgresql, kafka, rabbitmq, redis: { ...redis, key: e.target.value }, cassandra })}
+                    size="s"
+                    style={{ width: '100%', marginBottom: '8px' }}
+                />
+            )}
+            {isCassandra && (
+                <>
+                    <TextInput
+                        placeholder="Keyspace"
+                        value={cassandra?.keyspace || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql, kafka, rabbitmq, redis, cassandra: { ...cassandra, keyspace: e.target.value } })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                    <TextInput
+                        placeholder="Таблица"
+                        value={cassandra?.table || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql, kafka, rabbitmq, redis, cassandra: { ...cassandra, table: e.target.value } })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                    <TextInput
+                        placeholder="Ключ партиции"
+                        value={cassandra?.partitionKey || ''}
+                        onChange={(e: any) => onUpdate({ targetType, postgresql, kafka, rabbitmq, redis, cassandra: { ...cassandra, partitionKey: e.target.value } })}
+                        size="s"
+                        style={{ width: '100%', marginBottom: '8px' }}
+                    />
+                </>
             )}
         </div>
     );

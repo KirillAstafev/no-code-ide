@@ -48,10 +48,10 @@ function generateSchemaFromProject(project: Project): Schema {
                 data: destination,
             });
             let label = 'output';
-            if (destination.targetType === 'POSTGRESQL' && destination.tableName) {
-                label = destination.tableName;
-            } else if (destination.targetType === 'KAFKA' && destination.topic) {
-                label = destination.topic;
+            if (destination.targetType === 'POSTGRESQL' && destination.postgresql?.tableName) {
+                label = destination.postgresql?.tableName;
+            } else if (destination.targetType === 'KAFKA' && destination.kafka?.topic) {
+                label = destination.kafka?.topic;
             }
             edges.push({
                 id: `edge-${moduleId}-to-${destId}`,

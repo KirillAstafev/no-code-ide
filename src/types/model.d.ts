@@ -71,11 +71,46 @@ interface DataDestination {
     url: string;
     dependency: ExternalDependency;
     targetType?: string;
+    postgresql?: DestinationPostgresqlSettings;
+    kafka?: DestinationKafkaSettings;
+    rabbitmq?: DestinationRabbitmqSettings;
+    redis?: DestinationRedisSettings;
+    cassandra?: DestinationCassandraSettings;
+}
+
+interface DestinationPostgresqlSettings {
     databaseName?: string;
     schemaName?: string;
     tableName?: string;
     columnName?: string;
+    host?: string;
+    port?: number;
+    username?: string;
+    password?: string;
+}
+
+interface DestinationKafkaSettings {
     topic?: string;
+    bootstrapServers?: string;
+    groupId?: string;
+    clientId?: string;
+}
+
+interface DestinationRabbitmqSettings {
+    queueName?: string;
+    exchangeName?: string;
+    routingKey?: string;
+}
+
+interface DestinationRedisSettings {
+    key?: string;
+    ttl?: number;
+}
+
+interface DestinationCassandraSettings {
+    keyspace?: string;
+    table?: string;
+    partitionKey?: string;
 }
 
 interface ExternalDependency {
@@ -83,4 +118,49 @@ interface ExternalDependency {
     category: string;
     description: string;
     dependencyCode: string;
+}
+
+interface GeneratedProjectInfo {
+    projectName: string;
+    mainPackage: string;
+    mainClassName: string;
+    modules: ModuleInfo[];
+    sources: DataSourceInfo[];
+    destinations: DestinationConnectionInfo[];
+}
+
+interface ModuleInfo {
+    id: string;
+    name: string;
+    sourceConnections: SourceConnectionInfo[];
+    destinationConnections: DestinationConnectionInfo[];
+}
+
+interface DataSourceInfo {
+    id: string;
+    name: string;
+    ipAddress: string;
+    tcpPort: number;
+    commandName: string;
+}
+
+interface DestinationConnectionInfo {
+    id: string;
+    destinationName: string;
+    destinationUrl: string;
+    className: string;
+    targetType: string;
+    postgresql?: DestinationPostgresqlSettings;
+    kafka?: DestinationKafkaSettings;
+    rabbitmq?: DestinationRabbitmqSettings;
+    redis?: DestinationRedisSettings;
+    cassandra?: DestinationCassandraSettings;
+}
+
+interface SourceConnectionInfo {
+    id: string;
+    sourceName: string;
+    sourceIpAddress: string;
+    sourceTcpPort: number;
+    commandName: string;
 }

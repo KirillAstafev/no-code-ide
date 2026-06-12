@@ -34,11 +34,43 @@ interface DestinationConnection {
 
 interface DestinationSettings {
     targetType: string;
+    postgresql?: DestinationPostgresqlSettings;
+    kafka?: DestinationKafkaSettings;
+    rabbitmq?: DestinationRabbitmqSettings;
+    redis?: DestinationRedisSettings;
+    cassandra?: DestinationCassandraSettings;
+}
+
+interface DestinationPostgresqlSettings {
     databaseName?: string;
     schemaName?: string;
     tableName?: string;
     columnName?: string;
+    host?: string;
+    port?: number;
+    username?: string;
+    password?: string;
+}
+
+interface DestinationKafkaSettings {
     topic?: string;
+}
+
+interface DestinationRabbitmqSettings {
+    queueName?: string;
+    exchangeName?: string;
+    routingKey?: string;
+}
+
+interface DestinationRedisSettings {
+    key?: string;
+    ttl?: number;
+}
+
+interface DestinationCassandraSettings {
+    keyspace?: string;
+    table?: string;
+    partitionKey?: string;
 }
 
 interface SelectedDestination {
@@ -110,11 +142,11 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                     enabled: module.destinations?.some(d => d.name === destination.name) || false,
                     settings: {
                         targetType: destination.targetType || '',
-                        databaseName: destination.databaseName,
-                        schemaName: destination.schemaName,
-                        tableName: destination.tableName,
-                        columnName: destination.columnName,
-                        topic: destination.topic,
+                        postgresql: destination.postgresql || {},
+                        kafka: destination.kafka || {},
+                        rabbitmq: destination.rabbitmq || {},
+                        redis: destination.redis || {},
+                        cassandra: destination.cassandra || {},
                     }
                 }))
             );
@@ -179,21 +211,21 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
             setEditingDestination({
                 ...destination,
                 targetType: existingConnection.settings.targetType,
-                databaseName: existingConnection.settings.databaseName,
-                schemaName: existingConnection.settings.schemaName,
-                tableName: existingConnection.settings.tableName,
-                columnName: existingConnection.settings.columnName,
-                topic: existingConnection.settings.topic,
+                postgresql: existingConnection.settings.postgresql || {},
+                kafka: existingConnection.settings.kafka || {},
+                rabbitmq: existingConnection.settings.rabbitmq || {},
+                redis: existingConnection.settings.redis || {},
+                cassandra: existingConnection.settings.cassandra || {},
             });
         } else {
             setEditingDestination({
                 ...destination,
                 targetType: '',
-                databaseName: undefined,
-                schemaName: undefined,
-                tableName: undefined,
-                columnName: undefined,
-                topic: undefined,
+                postgresql: destination.postgresql || {},
+                kafka: destination.kafka || {},
+                rabbitmq: destination.rabbitmq || {},
+                redis: destination.redis || {},
+                cassandra: destination.cassandra || {},
             });
         }
     };
@@ -203,11 +235,11 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
             const destinationName = editingDestination.name;
             const settings: DestinationSettings = {
                 targetType: editingDestination.targetType || '',
-                databaseName: editingDestination.databaseName,
-                schemaName: editingDestination.schemaName,
-                tableName: editingDestination.tableName,
-                columnName: editingDestination.columnName,
-                topic: editingDestination.topic,
+                postgresql: editingDestination.postgresql,
+                kafka: editingDestination.kafka,
+                rabbitmq: editingDestination.rabbitmq,
+                redis: editingDestination.redis,
+                cassandra: editingDestination.cassandra,
             };
             setDestinationConnections(prev =>
                 prev.map(dc => dc.destination.name === destinationName ? { ...dc, settings } : dc)
@@ -461,22 +493,18 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                     <Text variant="header-2">Настройка приёмника "{editingDestination.name}"</Text>
                                 </div>
                                 <DestinationConfig
-                                    destinationName={editingDestination.name}
-                                    targetType={editingDestination.targetType || ''}
-                                    databaseName={editingDestination.databaseName}
-                                    schemaName={editingDestination.schemaName}
-                                    tableName={editingDestination.tableName}
-                                    columnName={editingDestination.columnName}
-                                    topic={editingDestination.topic}
+                                    targetType={editingDestination?.targetType || ''}
+                                    postgresql={editingDestination?.postgresql}
+                                    kafka={editingDestination?.kafka}
                                     onUpdate={(settings) => setEditingDestination(prev => prev ? {
                                         ...prev,
                                         targetType: settings.targetType,
-                                        databaseName: settings.databaseName,
-                                        schemaName: settings.schemaName,
-                                        tableName: settings.tableName,
-                                        columnName: settings.columnName,
-                                        topic: settings.topic,
-                                    } : null)}
+                                        postgresql: settings.postgresql,
+                                        kafka: settings.kafka,
+                                        rabbitmq: settings.rabbitmq || prev.rabbitmq || {},
+                                        redis: settings.redis || prev.redis || {},
+                                        cassandra: settings.cassandra || prev.cassandra || {},
+                                    } as DataDestination | null : null)}
                                 />
                                 <div
                                     style={{

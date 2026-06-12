@@ -109,7 +109,7 @@ function ElementPanel() {
         }
     };
 
-    const handleAddDestination = (name: string, url: string, dependency: ExternalDependency) => {
+    const handleAddDestination = (name: string, url: string, dependency: ExternalDependency, targetType: string) => {
         if (!project) return;
 
         let finalName = name;
@@ -124,6 +124,12 @@ function ElementPanel() {
             name: finalName,
             url: url,
             dependency: dependency,
+            targetType: targetType,
+            postgresql: {},
+            kafka: {},
+            rabbitmq: {},
+            redis: {},
+            cassandra: {},
         };
 
         const x = -100 + Math.random() * 200;
