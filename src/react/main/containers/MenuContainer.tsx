@@ -6,6 +6,7 @@ import { useWindow } from "../../context/WindowContext.tsx";
 import { CloneGitProjectPage } from "../../git/components/CloneGitProjectPage.tsx";
 import { useBuildProgress } from "../context/BuildProgressContext";
 import TestSettingsPage from '../../test/TestSettingsPage';
+import TestRunPage from '../../test/TestRunPage';
 
 function MenuContainer() {
     const { loadProject, saveProject, clearProject, state } = useProject();
@@ -16,7 +17,7 @@ function MenuContainer() {
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
     const [isCloneGitModalOpen, setIsCloneGitModalOpen] = useState(false);
     const [isTestSettingsOpen, setIsTestSettingsOpen] = useState(false);
-    const [isTestRunning, setIsTestRunning] = useState(false);
+    const [isTestRunOpen, setIsTestRunOpen] = useState(false);
 
     useEffect(() => {
         const handleBuildProgress = (_event: any, { type, payload }: any) => {
@@ -47,15 +48,28 @@ function MenuContainer() {
                     console.log(`Тест: ${payload.stage}`);
                     break;
                 case 'output':
-                    console.log(payload.output);
+                    // Выводим в консоль и обновляем состояние
+                    if (payload.output && payload.output.trim()) {
+                        const outputElem = document.getElementById('test-output');
+                        if (outputElem) {
+                            const timestamp = new Date().toLocaleTimeString();
+                            outputElem.innerHTML += `<div><span style="color: #888;">[${timestamp}]</span> ${payload.output}</div>`;
+                            outputElem.scrollTop = outputElem.scrollHeight;
+                        }
+                    }
                     break;
                 case 'finish':
                     console.log(`Тест завершен: ${payload.success}`);
-                    setIsTestRunning(false);
+                    setIsTestRunOpen(false);
                     break;
                 case 'error':
                     console.error(`Ошибка теста: ${payload.message}`);
-                    setIsTestRunning(false);
+                    setIsTestRunOpen(false);
+                    break;
+                case 'process-info':
+                    if (payload.pid) {
+                        console.log(`PID процесса теста: ${payload.pid}`);
+                    }
                     break;
             }
         };
@@ -159,24 +173,8 @@ function MenuContainer() {
         setIsTestSettingsOpen(true);
     };
 
-    const handleRunTest = async () => {
-        if (!project) return;
-
-        setIsTestRunning(true);
-
-        try {
-            const result = await window.electron.runTest(project);
-
-            if (result.success) {
-                alert(`Тест запущен. Путь к приложению: ${result.path}`);
-            } else {
-                alert(`Ошибка запуска теста: ${result.error}`);
-            }
-        } catch (err) {
-            alert(`Ошибка запуска теста: ${(err as Error).message}`);
-        } finally {
-            setIsTestRunning(false);
-        }
+    const handleRunTest = () => {
+        setIsTestRunOpen(true);
     };
 
     return (
@@ -246,7 +244,7 @@ function MenuContainer() {
                             },
                             {
                                 text: 'Запустить',
-                                disabled: !isLoaded || isTestRunning,
+                                disabled: !isLoaded,
                                 action: handleRunTest,
                             },
                         ],
@@ -295,6 +293,11 @@ function MenuContainer() {
             <TestSettingsPage
                 open={isTestSettingsOpen}
                 onClose={() => setIsTestSettingsOpen(false)}
+            />
+
+            <TestRunPage
+                open={isTestRunOpen}
+                onClose={() => setIsTestRunOpen(false)}
             />
         </>
     );

@@ -1,10 +1,33 @@
-import {IpcMainInvokeEvent, BrowserWindow} from 'electron';
+import {BrowserWindow, IpcMainInvokeEvent} from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import unzipper from 'unzipper';
 import {spawn} from "node:child_process";
-import {generateJavaProject, generateJavaFiles, findMainClassName} from './javaGenerator.js';
-import {log} from "electron-builder";
+import {findMainClassName, generateJavaFiles, generateJavaProject} from './javaGenerator.js';
+
+let testProcess: import('node:child_process').ChildProcess | null = null;
+
+export const stopTest = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+        if (testProcess && testProcess.pid) {
+            console.log(`Остановка процесса теста с PID: ${testProcess.pid}`);
+
+            if (process.platform === 'win32') {
+                const { spawn } = require('node:child_process');
+                spawn('taskkill', ['/PID', testProcess.pid.toString(), '/F']);
+            } else {
+                process.kill(testProcess.pid, 'SIGTERM');
+            }
+            
+            testProcess = null;
+            return { success: true };
+        }
+        return { success: false, error: 'Процесс теста не найден' };
+    } catch (error) {
+        console.error('Ошибка остановки теста:', error);
+        return { success: false, error: (error as Error).message };
+    }
+};
 
 function generateSchemaFromProject(project: Project): Schema {
     const nodes: SchemaNode[] = [];
@@ -431,14 +454,12 @@ export const runTest = async (
         const projectDir = project.location;
         const generatedDir = path.join(projectDir, 'generated');
 
-        // Проверяем, что сгенерированный проект существует
         try {
             await fs.stat(generatedDir);
         } catch (err) {
             throw new Error('Сгенерированный проект не найден. Выполните сборку проекта (Build) перед запуском теста.');
         }
 
-        // Получаем папку с распакованным шаблоном (это родительская папка для src, build.gradle и т.д.)
         const generatedItems = await fs.readdir(generatedDir);
         const templateFolder = generatedItems.find(item =>
             fs.stat(path.join(generatedDir, item)).then(s => s.isDirectory()).catch(() => false)
@@ -519,7 +540,7 @@ export const runTest = async (
 
         console.log(`Запуск Spring Boot с профилем test в папке: ${templatePath}`);
 
-        const testProcess = spawn(gradlewCmd, ['bootRun', '--args=\'--spring.profiles.active=test\''], {
+        testProcess = spawn(gradlewCmd, ['bootRun', '--args=\'--spring.profiles.active=test\''], {
             cwd: templatePath,
             stdio: 'pipe',
             shell: true,
@@ -533,7 +554,7 @@ export const runTest = async (
             });
         }
 
-        testProcess.stdout.on('data', (data) => {
+        testProcess.stdout?.on('data', (data) => {
             console.log(data.toString());
             if (window) {
                 window.webContents.send('run-test-progress', {
@@ -543,7 +564,7 @@ export const runTest = async (
             }
         });
 
-        testProcess.stderr.on('data', (data) => {
+        testProcess.stderr?.on('data', (data) => {
             console.error(data.toString());
             if (window) {
                 window.webContents.send('run-test-progress', {
@@ -555,6 +576,7 @@ export const runTest = async (
 
         testProcess.on('close', (code) => {
             console.log(`Spring Boot процесс завершен с кодом: ${code}`);
+            testProcess = null;
             if (window) {
                 window.webContents.send('run-test-progress', {
                     type: 'finish',
@@ -565,6 +587,7 @@ export const runTest = async (
 
         testProcess.on('error', (error) => {
             console.error('Ошибка запуска Spring Boot:', error);
+            testProcess = null;
             if (window) {
                 window.webContents.send('run-test-progress', {
                     type: 'error',
@@ -572,6 +595,13 @@ export const runTest = async (
                 });
             }
         });
+
+        if (window) {
+            window.webContents.send('run-test-progress', {
+                type: 'process-info',
+                payload: {pid: testProcess.pid}
+            });
+        }
 
         return {success: true, path: templatePath};
     } catch (error) {

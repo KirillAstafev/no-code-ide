@@ -33,6 +33,7 @@ electron.contextBridge.exposeInMainWorld('electron', {
     isGitRepository: (path: string) => electron.ipcRenderer.invoke('isGitRepository', path),
     createWindow: () => electron.ipcRenderer.invoke('createWindow'),
     runTest: (project: Project) => electron.ipcRenderer.invoke('runTest', project),
+    stopTest: () => electron.ipcRenderer.invoke('stopTest'),
     on: (channel: string, callback: (event: any, ...args: any[]) => void) => {
         electron.ipcRenderer.on(channel, callback);
     },

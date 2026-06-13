@@ -1,5 +1,5 @@
 import {app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent} from "electron";
-import {buildProject, createProject, loadProject, saveProject, runTest} from "./utils/project.js";
+import {buildProject, createProject, loadProject, saveProject, runTest, stopTest} from "./utils/project.js";
 import {
     addGitFiles,
     cloneGitRepository,
@@ -69,4 +69,5 @@ app.on("ready", () => {
     });
 
     ipcMain.handle('runTest', async (_: IpcMainInvokeEvent, project: Project) => await runTest(_, project));
+    ipcMain.handle('stopTest', async () => await stopTest());
 });
