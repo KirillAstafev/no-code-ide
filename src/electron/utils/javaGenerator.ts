@@ -1,5 +1,7 @@
 import path from 'path';
 import fs from 'fs/promises';
+import {isDev} from "./environment.js";
+import {app} from "electron";
 
 function generateJavaClassNameFromId(id: string): string {
     return normalizeIdentifier(id.charAt(0).toUpperCase() + id.slice(1));
@@ -33,6 +35,10 @@ function generateApplicationProperties(
             lines.push(`app.sources.${sourceName}.ipAddress=${source.ipAddress}`);
             lines.push(`app.sources.${sourceName}.tcpPort=${source.tcpPort}`);
             lines.push(`app.sources.${sourceName}.commandName=${source.commandName}`);
+
+            const commandParams = project.sources.filter(s => s.name === source.name)[0].commandParams || {};
+            lines.push(`app.sources.${sourceName}.accessPassword=${commandParams.accessPassword || ''}`);
+            lines.push(`app.sources.${sourceName}.userPassword=${commandParams.userPassword || ''}`);
             lines.push('');
         });
     }
@@ -115,7 +121,7 @@ function generateApplicationProperties(
 
 export async function findMainClassName(basePath: string): Promise<string> {
     try {
-        const javaFiles = await fs.readdir(path.join(basePath, 'src', 'main', 'java'), { recursive: true });
+        const javaFiles = await fs.readdir(path.join(basePath, 'src', 'main', 'java'), {recursive: true});
         for (const file of javaFiles) {
             if (file.endsWith('Application.java')) {
                 const filePath = path.join(basePath, 'src', 'main', 'java', file);
@@ -218,35 +224,158 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
     };
 }
 
+async function updateBuildGradle(
+    outputDir: string,
+    sources: DataSourceInfo[],
+    basePackage: string
+): Promise<void> {
+    const buildGradlePath = path.join(outputDir, 'build.gradle');
+
+    const hasKKTSources = sources.some(source =>
+        source.commandName && source.commandName.startsWith('NEVA_')
+    );
+
+    if (!hasKKTSources) {
+        return;
+    }
+
+    const kktDependencies = `
+// Зависимости для драйвера ККТ НЕВА 03-Ф
+dependencies {
+    // Локальная JAR-библиотека драйвера ККТ из папки libs
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+// Настройка для подключения нативной библиотеки
+bootRun {
+    systemProperty "java.library.path", "libs/native"
+}
+
+test {
+    systemProperty "java.library.path", "libs/native"
+}
+`;
+
+    const flatDirRepo = `
+    flatDir {
+        dirs 'libs'
+    }
+`;
+
+    try {
+        let existingContent = '';
+        try {
+            existingContent = await fs.readFile(buildGradlePath, 'utf-8');
+        } catch (error) {
+            // Файл не существует, создаём базовый
+            existingContent = `plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = '${basePackage.replace(/\./g, '.')}'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.postgresql:postgresql'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-data-cassandra'
+}
+`;
+        }
+
+        if (existingContent.includes('fiscal_core_driver')) {
+            console.log('KKT dependencies already present in build.gradle');
+            return;
+        }
+
+        if (existingContent.includes('repositories {')) {
+            if (!existingContent.includes('flatDir')) {
+                existingContent = existingContent.replace(
+                    /repositories\s*\{/,
+                    `repositories {\n    mavenCentral()${flatDirRepo}`
+                );
+            }
+        } else {
+            existingContent = existingContent.replace(
+                /dependencies\s*\{/,
+                `repositories {\n    mavenCentral()${flatDirRepo}\n}\n\ndependencies {`
+            );
+        }
+
+        if (existingContent.includes('dependencies {')) {
+            if (!existingContent.includes('implementation fileTree(dir: \'libs\'')) {
+                existingContent = existingContent.replace(
+                    /dependencies\s*\{/,
+                    `dependencies {\n    // Зависимости для драйвера ККТ НЕВА 03-Ф\n    implementation fileTree(dir: 'libs', include: ['*.jar'])`
+                );
+            }
+        } else {
+            existingContent += `\n\n${kktDependencies}`;
+        }
+
+        if (!existingContent.includes('bootRun {')) {
+            existingContent += `
+
+bootRun {
+    systemProperty "java.library.path", "libs/native"
+}
+
+test {
+    systemProperty "java.library.path", "libs/native"
+}`;
+        }
+
+        await fs.writeFile(buildGradlePath, existingContent, 'utf-8');
+        console.log('build.gradle updated with KKT driver dependencies');
+
+    } catch (error) {
+        console.error('Failed to update build.gradle:', error);
+        throw error;
+    }
+}
+
 export async function generateJavaFiles(
     project: Project,
     generatedProjectInfo: GeneratedProjectInfo,
-    outputDir: string
+    outputDir: string,
 ): Promise<void> {
-    const { modules, sources, destinations, mainPackage } = generatedProjectInfo;
+    const {modules, sources, destinations, mainPackage} = generatedProjectInfo;
     const basePackage = mainPackage;
 
     const javaBaseDir = path.join(outputDir, 'src', 'main', 'java', ...basePackage.split('.'));
     const resourcesDir = path.join(outputDir, 'src', 'main', 'resources');
     const configDir = path.join(javaBaseDir, 'config');
 
-    await fs.mkdir(javaBaseDir, { recursive: true });
-    await fs.mkdir(resourcesDir, { recursive: true });
-    await fs.mkdir(configDir, { recursive: true });
+    await fs.mkdir(javaBaseDir, {recursive: true});
+    await fs.mkdir(resourcesDir, {recursive: true});
+    await fs.mkdir(configDir, {recursive: true});
 
-    // Генерация application.properties
     const applicationPropertiesPath = path.join(resourcesDir, 'application.properties');
     const applicationPropertiesContent = generateApplicationProperties(project, sources, destinations);
     await fs.writeFile(applicationPropertiesPath, applicationPropertiesContent, 'utf-8');
 
-    // Генерация конфигурационных классов для каждого типа приёмника
     const configClasses = generateConfigurationClasses(destinations, basePackage);
     for (const [fileName, content] of Object.entries(configClasses)) {
         const configPath = path.join(configDir, fileName);
         await fs.writeFile(configPath, content, 'utf-8');
     }
 
-    // Генерация классов для приёмников
     const destinationPromises = destinations.map(destination => {
         const destinationPath = path.join(javaBaseDir, destination.className + '.java');
         return fs.writeFile(destinationPath, generateDestinationClass(destination, basePackage), 'utf-8');
@@ -254,9 +383,8 @@ export async function generateJavaFiles(
 
     await Promise.all(destinationPromises);
 
-    // Генерация сервисных классов модулей
     const modulePromises = modules.flatMap(module => [
-        (function() {
+        (function () {
             const serviceClassName = generateJavaClassNameFromId(module.id) + 'Service';
             const servicePath = path.join(javaBaseDir, serviceClassName + '.java');
             return fs.writeFile(servicePath, generateModuleServiceClass(module, basePackage), 'utf-8');
@@ -264,6 +392,94 @@ export async function generateJavaFiles(
     ]);
 
     await Promise.all(modulePromises);
+
+    await copyDriverLibraries(outputDir);
+    await updateBuildGradle(outputDir, sources, basePackage);
+}
+
+async function copyDriverLibraries(
+    outputDir: string,
+): Promise<void> {
+    const libsDir = path.join(outputDir, 'libs');
+    const nativeDir = path.join(libsDir, 'native');
+
+    await fs.mkdir(libsDir, {recursive: true});
+    await fs.mkdir(nativeDir, {recursive: true});
+
+    const sourceLibsDir = path.join(app.getAppPath(), isDev() ? '' : '..', '/libs');
+
+    try {
+        const jarFiles = await fs.readdir(sourceLibsDir);
+        for (const file of jarFiles) {
+            if (file.endsWith('.jar')) {
+                const sourcePath = path.join(sourceLibsDir, file);
+                const destPath = path.join(libsDir, file);
+                await fs.copyFile(sourcePath, destPath);
+                console.log(`Copied: ${file}`);
+            }
+        }
+
+        const sourceNativeDir = path.join(sourceLibsDir, 'native');
+        try {
+            const nativeFiles = await fs.readdir(sourceNativeDir);
+            for (const file of nativeFiles) {
+                if (file.endsWith('.dll') || file.endsWith('.so')) {
+                    const sourcePath = path.join(sourceNativeDir, file);
+                    const destPath = path.join(nativeDir, file);
+                    await fs.copyFile(sourcePath, destPath);
+                    console.log(`Copied native: ${file}`);
+                }
+            }
+        } catch (error) {
+            console.log('No native libraries found in source, skipping');
+        }
+
+        const infoContent = {
+            source: "Copied from No-Code IDE",
+            copyDate: new Date().toISOString(),
+            jarFiles: jarFiles.filter(f => f.endsWith('.jar')),
+            nativeFiles: await getNativeFilesList(sourceNativeDir)
+        };
+
+        await fs.writeFile(
+            path.join(libsDir, 'driver_info.json'),
+            JSON.stringify(infoContent, null, 2),
+            'utf-8'
+        );
+
+        console.log('Driver libraries copied successfully');
+
+    } catch (error) {
+        console.error('Failed to copy driver libraries:', error);
+
+        // Создаём README с инструкцией
+        const readmeContent = `# Установка драйвера ККТ
+
+## Автоматическое копирование не удалось
+
+Пожалуйста, скопируйте файлы драйвера вручную:
+
+1. Скопируйте \`fiscal_core_driver.jar\` в папку \`libs/\`
+2. Скопируйте нативные библиотеки:
+   - \`fiscal_core_driver.dll\` для Windows в \`libs/native/\`
+   - \`libfiscal_core_driver.so\` для Linux в \`libs/native/\`
+
+## Где взять драйвер
+Драйвер поставляется вместе с приложением No-Code IDE.
+Найдите его в папке установки приложения.
+`;
+
+        await fs.writeFile(path.join(libsDir, 'README.md'), readmeContent, 'utf-8');
+    }
+}
+
+async function getNativeFilesList(nativeDir: string): Promise<string[]> {
+    try {
+        const files = await fs.readdir(nativeDir);
+        return files.filter(f => f.endsWith('.dll') || f.endsWith('.so'));
+    } catch {
+        return [];
+    }
 }
 
 function generateConfigurationClasses(
@@ -556,6 +772,15 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
     const imports = new Set<string>();
     imports.add('import org.springframework.stereotype.Service;');
     imports.add('import org.springframework.beans.factory.annotation.Qualifier;');
+    imports.add('import org.springframework.beans.factory.annotation.Value;');
+    imports.add('import jakarta.annotation.PostConstruct;');
+    imports.add('import jakarta.annotation.PreDestroy;');
+
+    const hasSources = module.sourceConnections.length > 0;
+    if (hasSources) {
+        imports.add('import ru.neva.drivers.fptr.Fptr;');
+        imports.add('import ru.neva.drivers.fptr.IFptr;');
+    }
 
     const importsStr = Array.from(imports).join('\n') + '\n\n';
 
@@ -578,38 +803,410 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
         constructorAssignments += `        this.${fieldName} = ${fieldName};`;
     });
 
-    let methods = '';
+    let sourceFields = '';
+    let initMethod = '';
+    let destroyMethod = '';
+    let sourceMethods = '';
+
+    if (hasSources) {
+        module.sourceConnections.forEach(source => {
+            const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
+            sourceFields += `
+    private IFptr ${fieldName};
+    private boolean ${fieldName}Connected = false;
+    
+    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.ipAddress}")
+    private String ${fieldName}IpAddress;
+    
+    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.tcpPort}")
+    private int ${fieldName}TcpPort;
+    
+    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.accessPassword:}")
+    private String ${fieldName}AccessPassword;
+    
+    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.userPassword:}")
+    private String ${fieldName}UserPassword;
+`;
+        });
+
+        initMethod = `
+    @PostConstruct
+    public void init() {`;
+
+        module.sourceConnections.forEach(source => {
+            const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
+            initMethod += `
+        try {
+            // Инициализация драйвера для ${source.sourceName}
+            ${fieldName} = new Fptr();
+            
+            String settings = String.format(
+                "{\\"%s\\": %d, \\"%s\\": %d, \\"%s\\": \\"%s\\", \\"%s\\": %d}",
+                IFptr.LIBFPTR_SETTING_MODEL, IFptr.LIBFPTR_MODEL_NEVA_3F,
+                IFptr.LIBFPTR_SETTING_PORT, IFptr.LIBFPTR_PORT_TCPIP,
+                IFptr.LIBFPTR_SETTING_IPADDRESS, ${fieldName}IpAddress,
+                IFptr.LIBFPTR_SETTING_IPPORT, ${fieldName}TcpPort
+            );
+            
+            ${fieldName}.setSettings(settings);
+            
+            if (${fieldName}AccessPassword != null && !${fieldName}AccessPassword.isEmpty()) {
+                ${fieldName}.setSingleSetting(IFptr.LIBFPTR_SETTING_ACCESS_PASSWORD, ${fieldName}AccessPassword);
+            }
+            if (${fieldName}UserPassword != null && !${fieldName}UserPassword.isEmpty()) {
+                ${fieldName}.setSingleSetting(IFptr.LIBFPTR_SETTING_USER_PASSWORD, ${fieldName}UserPassword);
+            }
+            
+            ${fieldName}.applySingleSettings();
+            ${fieldName}.open();
+            ${fieldName}Connected = ${fieldName}.isOpened();
+            
+            System.out.println("KKT ${source.sourceName} initialized at " + ${fieldName}IpAddress + ":" + ${fieldName}TcpPort);
+        } catch (Exception e) {
+            System.err.println("Failed to initialize KKT ${source.sourceName}: " + e.getMessage());
+        }`;
+        });
+
+        initMethod += `
+    }`;
+
+        destroyMethod = `
+    @PreDestroy
+    public void destroy() {`;
+
+        module.sourceConnections.forEach(source => {
+            const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
+            destroyMethod += `
+        if (${fieldName} != null) {
+            ${fieldName}.close();
+            ${fieldName}.destroy();
+            ${fieldName}Connected = false;
+            System.out.println("KKT ${source.sourceName} destroyed");
+        }`;
+        });
+
+        destroyMethod += `
+    }`;
+
+        sourceFields += `
+    private void checkConnection(IFptr fptr, String name) {
+        if (fptr == null) {
+            throw new RuntimeException("KKT " + name + " not initialized");
+        }
+    }`;
+    }
 
     module.sourceConnections.forEach(source => {
         const methodName = `processDataFrom${generateJavaClassNameFromId(source.id)}`;
-        methods += `
+        const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
+        const commandName = source.commandName;
+
+        sourceMethods += `
     public void ${methodName}() {
-        System.out.println("${source.commandName} - обработка данных от источника ${normalizeIdentifier(source.sourceName)}");
-        // TODO: Реализовать логику обработки данных
-    }
-`;
+        System.out.println("${commandName} - обработка данных от источника ${normalizeIdentifier(source.sourceName)}");
+        
+        if (!${fieldName}Connected) {
+            System.err.println("KKT ${normalizeIdentifier(source.sourceName)} not connected");
+            return;
+        }
+        
+        try {
+            switch ("${commandName}") {`;
+
+        switch (commandName) {
+            case "NEVA_GET_STATUS":
+                sourceMethods += `
+                case "NEVA_GET_STATUS":
+                    getKKTStatus(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_SHORT_STATUS":
+                sourceMethods += `
+                case "NEVA_GET_SHORT_STATUS":
+                    getKKTShortStatus(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_CASH_SUM":
+                sourceMethods += `
+                case "NEVA_GET_CASH_SUM":
+                    getKKTCashSum(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_SHIFT_STATE":
+                sourceMethods += `
+                case "NEVA_GET_SHIFT_STATE":
+                    getKKTShiftState(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_OPEN_SHIFT":
+                sourceMethods += `
+                case "NEVA_OPEN_SHIFT":
+                    openKKTShift(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_CLOSE_SHIFT":
+                sourceMethods += `
+                case "NEVA_CLOSE_SHIFT":
+                    closeKKTShift(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_REGISTRATIONS_COUNT":
+                sourceMethods += `
+                case "NEVA_GET_REGISTRATIONS_COUNT":
+                    getKKTRegistrationsCount(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_REGISTRATIONS_SUM":
+                sourceMethods += `
+                case "NEVA_GET_REGISTRATIONS_SUM":
+                    getKKTRegistrationsSum(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_PAYMENT_SUM":
+                sourceMethods += `
+                case "NEVA_GET_PAYMENT_SUM":
+                    getKKTPaymentSum(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_CASHIN_SUM":
+                sourceMethods += `
+                case "NEVA_GET_CASHIN_SUM":
+                    getKKTCashInSum(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_CASHOUT_SUM":
+                sourceMethods += `
+                case "NEVA_GET_CASHOUT_SUM":
+                    getKKTCashOutSum(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_REVENUE":
+                sourceMethods += `
+                case "NEVA_GET_REVENUE":
+                    getKKTRevenue(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_GET_DATE_TIME":
+                sourceMethods += `
+                case "NEVA_GET_DATE_TIME":
+                    getKKTDateTime(${fieldName});
+                    break;`;
+                break;
+            case "NEVA_SET_DATE_TIME":
+                sourceMethods += `
+                case "NEVA_SET_DATE_TIME":
+                    setKKTDateTime(${fieldName});
+                    break;`;
+                break;
+            default:
+                sourceMethods += `
+                default:
+                    System.out.println("Unknown command: ${commandName}");
+                    break;`;
+        }
+
+        sourceMethods += `
+            }
+        } catch (Exception e) {
+            System.err.println("Error executing command ${commandName}: " + e.getMessage());
+        }
+    }`;
     });
 
+    let helperMethods = '';
+    if (hasSources) {
+        helperMethods = `
+    // Вспомогательные методы для работы с ККТ
+    
+    private void getKKTStatus(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_STATUS);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get status: " + fptr.errorDescription());
+            return;
+        }
+        
+        System.out.println("=== KKT Status ===");
+        System.out.println("Operator ID: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_OPERATOR_ID));
+        System.out.println("Shift state: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE));
+        System.out.println("Shift number: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER));
+        System.out.println("Receipt sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_RECEIPT_SUM));
+        System.out.println("Cash drawer opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED));
+        System.out.println("Paper present: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT));
+        System.out.println("Cover opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED));
+        System.out.println("Serial number: " + fptr.getParamString(IFptr.LIBFPTR_PARAM_SERIAL_NUMBER));
+        System.out.println("Model: " + fptr.getParamString(IFptr.LIBFPTR_PARAM_MODEL_NAME));
+        System.out.println("Firmware: " + fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION));
+        System.out.println("==================");
+    }
+    
+    private void getKKTShortStatus(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHORT_STATUS);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get short status: " + fptr.errorDescription());
+            return;
+        }
+        
+        System.out.println("=== KKT Short Status ===");
+        System.out.println("Cash drawer opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED));
+        System.out.println("Paper present: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT));
+        System.out.println("Paper near end: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_PAPER_NEAR_END));
+        System.out.println("Cover opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED));
+        System.out.println("========================");
+    }
+    
+    private void getKKTCashSum(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASH_SUM);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get cash sum: " + fptr.errorDescription());
+            return;
+        }
+        
+        double cashSum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        System.out.println("Cash in drawer: " + cashSum);
+    }
+    
+    private void getKKTShiftState(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHIFT_STATE);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get shift state: " + fptr.errorDescription());
+            return;
+        }
+        
+        long state = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE);
+        long number = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER);
+        String stateStr = "";
+        if (state == IFptr.LIBFPTR_SS_CLOSED) stateStr = "CLOSED";
+        else if (state == IFptr.LIBFPTR_SS_OPENED) stateStr = "OPENED";
+        else if (state == IFptr.LIBFPTR_SS_EXPIRED) stateStr = "EXPIRED";
+        
+        System.out.println("Shift state: " + stateStr + ", number: " + number);
+    }
+    
+    private void openKKTShift(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
+        if (fptr.openShift() < 0) {
+            System.err.println("Failed to open shift: " + fptr.errorDescription());
+            return;
+        }
+        System.out.println("Shift opened successfully");
+    }
+    
+    private void closeKKTShift(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
+        if (fptr.close() < 0) {
+            System.err.println("Failed to close shift: " + fptr.errorDescription());
+            return;
+        }
+        System.out.println("Shift closed successfully");
+    }
+    
+    private void getKKTRegistrationsCount(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_COUNT);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get registrations count: " + fptr.errorDescription());
+            return;
+        }
+        
+        long count = fptr.getParamInt(IFptr.LIBFPTR_PARAM_COUNT);
+        System.out.println("Registrations count (SELL): " + count);
+    }
+    
+    private void getKKTRegistrationsSum(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_SUM);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get registrations sum: " + fptr.errorDescription());
+            return;
+        }
+        
+        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        System.out.println("Registrations sum (SELL): " + sum);
+    }
+    
+    private void getKKTPaymentSum(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_PAYMENT_SUM);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_CASH);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get payment sum: " + fptr.errorDescription());
+            return;
+        }
+        
+        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        System.out.println("Payment sum (CASH, SELL): " + sum);
+    }
+    
+    private void getKKTCashInSum(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHIN_SUM);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get cash in sum: " + fptr.errorDescription());
+            return;
+        }
+        
+        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        System.out.println("Cash in sum: " + sum);
+    }
+    
+    private void getKKTCashOutSum(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHOUT_SUM);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get cash out sum: " + fptr.errorDescription());
+            return;
+        }
+        
+        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        System.out.println("Cash out sum: " + sum);
+    }
+    
+    private void getKKTRevenue(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REVENUE);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get revenue: " + fptr.errorDescription());
+            return;
+        }
+        
+        double revenue = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        System.out.println("Revenue: " + revenue);
+    }
+    
+    private void getKKTDateTime(IFptr fptr) {
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_DATE_TIME);
+        if (fptr.queryData() < 0) {
+            System.err.println("Failed to get date time: " + fptr.errorDescription());
+            return;
+        }
+        
+        java.util.Date dateTime = fptr.getParamDateTime(IFptr.LIBFPTR_PARAM_DATE_TIME);
+        System.out.println("KKT Date/Time: " + dateTime);
+    }`;
+    }
+
+    let destinationMethods = '';
     module.destinationConnections.forEach(destination => {
         const methodName = `sendDataTo${generateJavaClassNameFromId(destination.id)}`;
         const clientField = `${normalizePropertyName(destination.destinationName.toLowerCase())}Client`;
 
-        methods += `
+        destinationMethods += `
     public void ${methodName}(String data) {
         ${clientField}.sendData(data);
-    }
-`;
+    }`;
     });
 
     return `${packageDeclaration}${importsStr}
 @Service
 public class ${className} {
-${fields}
+${fields}${sourceFields}
     
     public ${className}(${constructorParams}) {
 ${constructorAssignments}
     }
-${methods}}
+${initMethod}
+${destroyMethod}
+${sourceMethods}
+${destinationMethods}
+${helperMethods}
+}
 `;
 }
 

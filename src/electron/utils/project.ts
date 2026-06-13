@@ -354,7 +354,6 @@ export const buildProject = async (
             
             gradleProcess.stdout.on('data', (data) => {
                 console.log(data.toString());
-                // Обновляем прогресс на основе вывода (примерная логика)
                 const output = data.toString();
                 if (output.includes('BUILD')) {
                     const window = BrowserWindow.fromWebContents(event.sender);
