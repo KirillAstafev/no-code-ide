@@ -376,6 +376,15 @@ export async function generateJavaFiles(
         await fs.writeFile(configPath, content, 'utf-8');
     }
 
+    if (sources.length > 0) {
+        const sourcePromises = sources.map(source => {
+            const sourceClassName = `${normalizeIdentifier(source.name)}Source`;
+            const sourcePath = path.join(javaBaseDir, sourceClassName + '.java');
+            return fs.writeFile(sourcePath, generateSourceClass(source, basePackage), 'utf-8');
+        });
+        await Promise.all(sourcePromises);
+    }
+
     const destinationPromises = destinations.map(destination => {
         const destinationPath = path.join(javaBaseDir, destination.className + '.java');
         return fs.writeFile(destinationPath, generateDestinationClass(destination, basePackage), 'utf-8');
@@ -765,6 +774,281 @@ public class CassandraConfig {${beans}
 `;
 }
 
+function generateSourceClass(source: DataSourceInfo, basePackage: string): string {
+    const className = `${normalizeIdentifier(source.name)}Source`;
+    const packageDeclaration = `package ${basePackage};\n`;
+    const propertyName = normalizePropertyName(source.name);
+
+    const imports = `import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import ru.neva.drivers.fptr.Fptr;
+import ru.neva.drivers.fptr.IFptr;\n`;
+
+    // Генерация полей для настроек
+    const fields = `
+    private IFptr fptr;
+    private boolean connected = false;
+    
+    @Value("${"$"}{app.sources.${propertyName}.ipAddress}")
+    private String ipAddress;
+    
+    @Value("${"$"}{app.sources.${propertyName}.tcpPort}")
+    private int tcpPort;
+    
+    @Value("${"$"}{app.sources.${propertyName}.accessPassword:}")
+    private String accessPassword;
+    
+    @Value("${"$"}{app.sources.${propertyName}.userPassword:}")
+    private String userPassword;`;
+
+    // Метод инициализации
+    const initMethod = `
+    @PostConstruct
+    public void init() {
+        try {
+            fptr = new Fptr();
+            
+            String settings = String.format(
+                "{\\"%s\\": %d, \\"%s\\": %d, \\"%s\\": \\"%s\\", \\"%s\\": %d}",
+                IFptr.LIBFPTR_SETTING_MODEL, IFptr.LIBFPTR_MODEL_NEVA_3F,
+                IFptr.LIBFPTR_SETTING_PORT, IFptr.LIBFPTR_PORT_TCPIP,
+                IFptr.LIBFPTR_SETTING_IPADDRESS, ipAddress,
+                IFptr.LIBFPTR_SETTING_IPPORT, tcpPort
+            );
+            
+            fptr.setSettings(settings);
+            
+            if (accessPassword != null && !accessPassword.isEmpty()) {
+                fptr.setSingleSetting(IFptr.LIBFPTR_SETTING_ACCESS_PASSWORD, accessPassword);
+            }
+            if (userPassword != null && !userPassword.isEmpty()) {
+                fptr.setSingleSetting(IFptr.LIBFPTR_SETTING_USER_PASSWORD, userPassword);
+            }
+            
+            fptr.applySingleSettings();
+            fptr.open();
+            connected = fptr.isOpened();
+            
+            System.out.println("KKT ${source.name} initialized at " + ipAddress + ":" + tcpPort);
+        } catch (Exception e) {
+            System.err.println("Failed to initialize KKT ${source.name}: " + e.getMessage());
+        }
+    }`;
+
+    // Метод деинициализации
+    const destroyMethod = `
+    @PreDestroy
+    public void destroy() {
+        if (fptr != null) {
+            fptr.close();
+            fptr.destroy();
+            connected = false;
+            System.out.println("KKT ${source.name} destroyed");
+        }
+    }`;
+
+    // Методы для всех поддерживаемых команд (возвращают результат)
+    const commandMethods = `
+    public boolean isConnected() {
+        return connected;
+    }
+    
+    private void checkConnection() {
+        if (!connected || fptr == null) {
+            throw new RuntimeException("KKT ${source.name} not connected");
+        }
+    }
+    
+    // 1. Запрос общей информации и статуса ККТ
+    public String getStatus() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_STATUS);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("KKT Status\\n");
+        sb.append("Operator ID: ").append(fptr.getParamInt(IFptr.LIBFPTR_PARAM_OPERATOR_ID)).append("\\n");
+        sb.append("Shift state: ").append(fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)).append("\\n");
+        sb.append("Shift number: ").append(fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER)).append("\\n");
+        sb.append("Receipt sum: ").append(fptr.getParamDouble(IFptr.LIBFPTR_PARAM_RECEIPT_SUM)).append("\\n");
+        sb.append("Cash drawer opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED)).append("\\n");
+        sb.append("Paper present: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT)).append("\\n");
+        sb.append("Cover opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED)).append("\\n");
+        sb.append("Serial number: ").append(fptr.getParamString(IFptr.LIBFPTR_PARAM_SERIAL_NUMBER)).append("\\n");
+        sb.append("Model: ").append(fptr.getParamString(IFptr.LIBFPTR_PARAM_MODEL_NAME)).append("\\n");
+        sb.append("Firmware: ").append(fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION));
+        
+        return sb.toString();
+    }
+    
+    // 2. Короткий запрос статуса ККТ
+    public String getShortStatus() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHORT_STATUS);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("KKT Short Status\\n");
+        sb.append("Cash drawer opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED)).append("\\n");
+        sb.append("Paper present: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT)).append("\\n");
+        sb.append("Paper near end: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_PAPER_NEAR_END)).append("\\n");
+        sb.append("Cover opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED));
+        
+        return sb.toString();
+    }
+    
+    // 3. Запрос суммы наличных в денежном ящике
+    public String getCashSum() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASH_SUM);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Cash sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+    }
+    
+    // 4. Запрос состояния смены
+    public String getShiftState() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHIFT_STATE);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        
+        long state = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE);
+        long number = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER);
+        String stateStr = "";
+        if (state == IFptr.LIBFPTR_SS_CLOSED) stateStr = "CLOSED";
+        else if (state == IFptr.LIBFPTR_SS_OPENED) stateStr = "OPENED";
+        else if (state == IFptr.LIBFPTR_SS_EXPIRED) stateStr = "EXPIRED";
+        
+        return "Shift state: " + stateStr + ", number: " + number;
+    }
+    
+    // 5. Открытие смены
+    public String openShift() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
+        if (fptr.openShift() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Shift opened successfully";
+    }
+    
+    // 6. Закрытие смены
+    public String closeShift() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
+        if (fptr.close() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Shift closed successfully";
+    }
+    
+    // 7. Запрос количества регистраций
+    public String getRegistrationsCount() {
+        return getRegistrationsCount(IFptr.LIBFPTR_RT_SELL);
+    }
+    
+    public String getRegistrationsCount(int receiptType) {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_COUNT);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, receiptType);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Registrations count: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_COUNT);
+    }
+    
+    // 8. Запрос суммы регистраций
+    public String getRegistrationsSum() {
+        return getRegistrationsSum(IFptr.LIBFPTR_RT_SELL);
+    }
+    
+    public String getRegistrationsSum(int receiptType) {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_SUM);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, receiptType);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Registrations sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+    }
+    
+    // 9. Запрос суммы платежей
+    public String getPaymentSum() {
+        return getPaymentSum(IFptr.LIBFPTR_PT_CASH, IFptr.LIBFPTR_RT_SELL);
+    }
+    
+    public String getPaymentSum(int paymentType, int receiptType) {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_PAYMENT_SUM);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, paymentType);
+        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, receiptType);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Payment sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+    }
+    
+    // 10. Запрос суммы внесений
+    public String getCashInSum() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHIN_SUM);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Cash in sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+    }
+    
+    // 11. Запрос суммы выплат
+    public String getCashOutSum() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHOUT_SUM);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Cash out sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+    }
+    
+    // 12. Запрос суммы выручки
+    public String getRevenue() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REVENUE);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "Revenue: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+    }
+    
+    // 13. Запрос текущих даты и времени с ККТ
+    public String getDateTime() {
+        checkConnection();
+        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_DATE_TIME);
+        if (fptr.queryData() < 0) {
+            return "Error: " + fptr.errorDescription();
+        }
+        return "KKT Date/Time: " + fptr.getParamDateTime(IFptr.LIBFPTR_PARAM_DATE_TIME);
+    }`;
+
+    return `${packageDeclaration}
+${imports}
+@Component
+public class ${className} {${fields}
+    
+${initMethod}
+${destroyMethod}
+${commandMethods}
+}
+`;
+}
+
 function generateModuleServiceClass(module: ModuleInfo, basePackage: string): string {
     const className = generateJavaClassNameFromId(module.id) + 'Service';
     const packageDeclaration = `package ${basePackage};\n`;
@@ -772,18 +1056,10 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
     const imports = new Set<string>();
     imports.add('import org.springframework.stereotype.Service;');
     imports.add('import org.springframework.beans.factory.annotation.Qualifier;');
-    imports.add('import org.springframework.beans.factory.annotation.Value;');
-    imports.add('import jakarta.annotation.PostConstruct;');
-    imports.add('import jakarta.annotation.PreDestroy;');
-
-    const hasSources = module.sourceConnections.length > 0;
-    if (hasSources) {
-        imports.add('import ru.neva.drivers.fptr.Fptr;');
-        imports.add('import ru.neva.drivers.fptr.IFptr;');
-    }
 
     const importsStr = Array.from(imports).join('\n') + '\n\n';
 
+    // Поля для приёмников
     let fields = '';
     let constructorParams = '';
     let constructorAssignments = '';
@@ -803,112 +1079,42 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
         constructorAssignments += `        this.${fieldName} = ${fieldName};`;
     });
 
+    // Поля для источников
     let sourceFields = '';
-    let initMethod = '';
-    let destroyMethod = '';
-    let sourceMethods = '';
+    let sourceConstructorParams = '';
+    let sourceConstructorAssignments = '';
 
-    if (hasSources) {
-        module.sourceConnections.forEach(source => {
-            const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
-            sourceFields += `
-    private IFptr ${fieldName};
-    private boolean ${fieldName}Connected = false;
-    
-    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.ipAddress}")
-    private String ${fieldName}IpAddress;
-    
-    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.tcpPort}")
-    private int ${fieldName}TcpPort;
-    
-    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.accessPassword:}")
-    private String ${fieldName}AccessPassword;
-    
-    @Value("${"$"}{app.sources.${normalizePropertyName(source.sourceName)}.userPassword:}")
-    private String ${fieldName}UserPassword;
-`;
-        });
+    module.sourceConnections.forEach((source, index) => {
+        const fieldName = `${normalizePropertyName(source.sourceName)}Source`;
+        const sourceClassName = `${normalizeIdentifier(source.sourceName)}Source`;
+        const beanName = `${normalizePropertyName(source.sourceName)}Source`;
 
-        initMethod = `
-    @PostConstruct
-    public void init() {`;
+        sourceFields += `    private final ${sourceClassName} ${fieldName};\n`;
 
-        module.sourceConnections.forEach(source => {
-            const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
-            initMethod += `
-        try {
-            // Инициализация драйвера для ${source.sourceName}
-            ${fieldName} = new Fptr();
-            
-            String settings = String.format(
-                "{\\"%s\\": %d, \\"%s\\": %d, \\"%s\\": \\"%s\\", \\"%s\\": %d}",
-                IFptr.LIBFPTR_SETTING_MODEL, IFptr.LIBFPTR_MODEL_NEVA_3F,
-                IFptr.LIBFPTR_SETTING_PORT, IFptr.LIBFPTR_PORT_TCPIP,
-                IFptr.LIBFPTR_SETTING_IPADDRESS, ${fieldName}IpAddress,
-                IFptr.LIBFPTR_SETTING_IPPORT, ${fieldName}TcpPort
-            );
-            
-            ${fieldName}.setSettings(settings);
-            
-            if (${fieldName}AccessPassword != null && !${fieldName}AccessPassword.isEmpty()) {
-                ${fieldName}.setSingleSetting(IFptr.LIBFPTR_SETTING_ACCESS_PASSWORD, ${fieldName}AccessPassword);
-            }
-            if (${fieldName}UserPassword != null && !${fieldName}UserPassword.isEmpty()) {
-                ${fieldName}.setSingleSetting(IFptr.LIBFPTR_SETTING_USER_PASSWORD, ${fieldName}UserPassword);
-            }
-            
-            ${fieldName}.applySingleSettings();
-            ${fieldName}.open();
-            ${fieldName}Connected = ${fieldName}.isOpened();
-            
-            System.out.println("KKT ${source.sourceName} initialized at " + ${fieldName}IpAddress + ":" + ${fieldName}TcpPort);
-        } catch (Exception e) {
-            System.err.println("Failed to initialize KKT ${source.sourceName}: " + e.getMessage());
-        }`;
-        });
-
-        initMethod += `
-    }`;
-
-        destroyMethod = `
-    @PreDestroy
-    public void destroy() {`;
-
-        module.sourceConnections.forEach(source => {
-            const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
-            destroyMethod += `
-        if (${fieldName} != null) {
-            ${fieldName}.close();
-            ${fieldName}.destroy();
-            ${fieldName}Connected = false;
-            System.out.println("KKT ${source.sourceName} destroyed");
-        }`;
-        });
-
-        destroyMethod += `
-    }`;
-
-        sourceFields += `
-    private void checkConnection(IFptr fptr, String name) {
-        if (fptr == null) {
-            throw new RuntimeException("KKT " + name + " not initialized");
+        if (index > 0) {
+            sourceConstructorParams += ', ';
+            sourceConstructorAssignments += '\n';
         }
-    }`;
-    }
+        sourceConstructorParams += `@Qualifier("${beanName}") ${sourceClassName} ${fieldName}`;
+        sourceConstructorAssignments += `        this.${fieldName} = ${fieldName};`;
+    });
 
+    let sourceMethods = '';
     module.sourceConnections.forEach(source => {
         const methodName = `processDataFrom${generateJavaClassNameFromId(source.id)}`;
-        const fieldName = `${normalizePropertyName(source.sourceName)}Driver`;
+        const sourceField = `${normalizePropertyName(source.sourceName)}Source`;
         const commandName = source.commandName;
 
         sourceMethods += `
     public void ${methodName}() {
         System.out.println("${commandName} - обработка данных от источника ${normalizeIdentifier(source.sourceName)}");
         
-        if (!${fieldName}Connected) {
+        if (!${sourceField}.isConnected()) {
             System.err.println("KKT ${normalizeIdentifier(source.sourceName)} not connected");
             return;
         }
+        
+        String result = "";
         
         try {
             switch ("${commandName}") {`;
@@ -917,270 +1123,113 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
             case "NEVA_GET_STATUS":
                 sourceMethods += `
                 case "NEVA_GET_STATUS":
-                    getKKTStatus(${fieldName});
+                    result = ${sourceField}.getStatus();
                     break;`;
                 break;
             case "NEVA_GET_SHORT_STATUS":
                 sourceMethods += `
                 case "NEVA_GET_SHORT_STATUS":
-                    getKKTShortStatus(${fieldName});
+                    result = ${sourceField}.getShortStatus();
                     break;`;
                 break;
             case "NEVA_GET_CASH_SUM":
                 sourceMethods += `
                 case "NEVA_GET_CASH_SUM":
-                    getKKTCashSum(${fieldName});
+                    result = ${sourceField}.getCashSum();
                     break;`;
                 break;
             case "NEVA_GET_SHIFT_STATE":
                 sourceMethods += `
                 case "NEVA_GET_SHIFT_STATE":
-                    getKKTShiftState(${fieldName});
+                    result = ${sourceField}.getShiftState();
                     break;`;
                 break;
             case "NEVA_OPEN_SHIFT":
                 sourceMethods += `
                 case "NEVA_OPEN_SHIFT":
-                    openKKTShift(${fieldName});
+                    result = ${sourceField}.openShift();
                     break;`;
                 break;
             case "NEVA_CLOSE_SHIFT":
                 sourceMethods += `
                 case "NEVA_CLOSE_SHIFT":
-                    closeKKTShift(${fieldName});
+                    result = ${sourceField}.closeShift();
                     break;`;
                 break;
             case "NEVA_GET_REGISTRATIONS_COUNT":
                 sourceMethods += `
                 case "NEVA_GET_REGISTRATIONS_COUNT":
-                    getKKTRegistrationsCount(${fieldName});
+                    result = ${sourceField}.getRegistrationsCount();
                     break;`;
                 break;
             case "NEVA_GET_REGISTRATIONS_SUM":
                 sourceMethods += `
                 case "NEVA_GET_REGISTRATIONS_SUM":
-                    getKKTRegistrationsSum(${fieldName});
+                    result = ${sourceField}.getRegistrationsSum();
                     break;`;
                 break;
             case "NEVA_GET_PAYMENT_SUM":
                 sourceMethods += `
                 case "NEVA_GET_PAYMENT_SUM":
-                    getKKTPaymentSum(${fieldName});
+                    result = ${sourceField}.getPaymentSum();
                     break;`;
                 break;
             case "NEVA_GET_CASHIN_SUM":
                 sourceMethods += `
                 case "NEVA_GET_CASHIN_SUM":
-                    getKKTCashInSum(${fieldName});
+                    result = ${sourceField}.getCashInSum();
                     break;`;
                 break;
             case "NEVA_GET_CASHOUT_SUM":
                 sourceMethods += `
                 case "NEVA_GET_CASHOUT_SUM":
-                    getKKTCashOutSum(${fieldName});
+                    result = ${sourceField}.getCashOutSum();
                     break;`;
                 break;
             case "NEVA_GET_REVENUE":
                 sourceMethods += `
                 case "NEVA_GET_REVENUE":
-                    getKKTRevenue(${fieldName});
+                    result = ${sourceField}.getRevenue();
                     break;`;
                 break;
             case "NEVA_GET_DATE_TIME":
                 sourceMethods += `
                 case "NEVA_GET_DATE_TIME":
-                    getKKTDateTime(${fieldName});
+                    result = ${sourceField}.getDateTime();
                     break;`;
                 break;
             case "NEVA_SET_DATE_TIME":
                 sourceMethods += `
                 case "NEVA_SET_DATE_TIME":
-                    setKKTDateTime(${fieldName});
+                    result = ${sourceField}.setDateTime();
                     break;`;
                 break;
             default:
                 sourceMethods += `
                 default:
-                    System.out.println("Unknown command: ${commandName}");
+                    result = "Unknown command: ${commandName}";
                     break;`;
         }
 
         sourceMethods += `
             }
         } catch (Exception e) {
-            System.err.println("Error executing command ${commandName}: " + e.getMessage());
+            result = "Error executing command: " + e.getMessage();
         }
+        
+        System.out.println("Command result: " + result);
+        
+        // Отправляем результат во все приёмники модуля`;
+
+        module.destinationConnections.forEach(destination => {
+            const sendMethod = `sendDataTo${generateJavaClassNameFromId(destination.id)}`;
+            sourceMethods += `
+        ${sendMethod}(result);`;
+        });
+
+        sourceMethods += `
     }`;
     });
-
-    let helperMethods = '';
-    if (hasSources) {
-        helperMethods = `
-    // Вспомогательные методы для работы с ККТ
-    
-    private void getKKTStatus(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_STATUS);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get status: " + fptr.errorDescription());
-            return;
-        }
-        
-        System.out.println("=== KKT Status ===");
-        System.out.println("Operator ID: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_OPERATOR_ID));
-        System.out.println("Shift state: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE));
-        System.out.println("Shift number: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER));
-        System.out.println("Receipt sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_RECEIPT_SUM));
-        System.out.println("Cash drawer opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED));
-        System.out.println("Paper present: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT));
-        System.out.println("Cover opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED));
-        System.out.println("Serial number: " + fptr.getParamString(IFptr.LIBFPTR_PARAM_SERIAL_NUMBER));
-        System.out.println("Model: " + fptr.getParamString(IFptr.LIBFPTR_PARAM_MODEL_NAME));
-        System.out.println("Firmware: " + fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION));
-        System.out.println("==================");
-    }
-    
-    private void getKKTShortStatus(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHORT_STATUS);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get short status: " + fptr.errorDescription());
-            return;
-        }
-        
-        System.out.println("=== KKT Short Status ===");
-        System.out.println("Cash drawer opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED));
-        System.out.println("Paper present: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT));
-        System.out.println("Paper near end: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_PAPER_NEAR_END));
-        System.out.println("Cover opened: " + fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED));
-        System.out.println("========================");
-    }
-    
-    private void getKKTCashSum(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASH_SUM);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get cash sum: " + fptr.errorDescription());
-            return;
-        }
-        
-        double cashSum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
-        System.out.println("Cash in drawer: " + cashSum);
-    }
-    
-    private void getKKTShiftState(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHIFT_STATE);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get shift state: " + fptr.errorDescription());
-            return;
-        }
-        
-        long state = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE);
-        long number = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER);
-        String stateStr = "";
-        if (state == IFptr.LIBFPTR_SS_CLOSED) stateStr = "CLOSED";
-        else if (state == IFptr.LIBFPTR_SS_OPENED) stateStr = "OPENED";
-        else if (state == IFptr.LIBFPTR_SS_EXPIRED) stateStr = "EXPIRED";
-        
-        System.out.println("Shift state: " + stateStr + ", number: " + number);
-    }
-    
-    private void openKKTShift(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
-        if (fptr.openShift() < 0) {
-            System.err.println("Failed to open shift: " + fptr.errorDescription());
-            return;
-        }
-        System.out.println("Shift opened successfully");
-    }
-    
-    private void closeKKTShift(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
-        if (fptr.close() < 0) {
-            System.err.println("Failed to close shift: " + fptr.errorDescription());
-            return;
-        }
-        System.out.println("Shift closed successfully");
-    }
-    
-    private void getKKTRegistrationsCount(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_COUNT);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get registrations count: " + fptr.errorDescription());
-            return;
-        }
-        
-        long count = fptr.getParamInt(IFptr.LIBFPTR_PARAM_COUNT);
-        System.out.println("Registrations count (SELL): " + count);
-    }
-    
-    private void getKKTRegistrationsSum(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_SUM);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get registrations sum: " + fptr.errorDescription());
-            return;
-        }
-        
-        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
-        System.out.println("Registrations sum (SELL): " + sum);
-    }
-    
-    private void getKKTPaymentSum(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_PAYMENT_SUM);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, IFptr.LIBFPTR_PT_CASH);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, IFptr.LIBFPTR_RT_SELL);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get payment sum: " + fptr.errorDescription());
-            return;
-        }
-        
-        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
-        System.out.println("Payment sum (CASH, SELL): " + sum);
-    }
-    
-    private void getKKTCashInSum(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHIN_SUM);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get cash in sum: " + fptr.errorDescription());
-            return;
-        }
-        
-        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
-        System.out.println("Cash in sum: " + sum);
-    }
-    
-    private void getKKTCashOutSum(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHOUT_SUM);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get cash out sum: " + fptr.errorDescription());
-            return;
-        }
-        
-        double sum = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
-        System.out.println("Cash out sum: " + sum);
-    }
-    
-    private void getKKTRevenue(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REVENUE);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get revenue: " + fptr.errorDescription());
-            return;
-        }
-        
-        double revenue = fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
-        System.out.println("Revenue: " + revenue);
-    }
-    
-    private void getKKTDateTime(IFptr fptr) {
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_DATE_TIME);
-        if (fptr.queryData() < 0) {
-            System.err.println("Failed to get date time: " + fptr.errorDescription());
-            return;
-        }
-        
-        java.util.Date dateTime = fptr.getParamDateTime(IFptr.LIBFPTR_PARAM_DATE_TIME);
-        System.out.println("KKT Date/Time: " + dateTime);
-    }`;
-    }
 
     let destinationMethods = '';
     module.destinationConnections.forEach(destination => {
@@ -1193,19 +1242,19 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
     }`;
     });
 
+    const allConstructorParams = constructorParams + (sourceConstructorParams ? (constructorParams ? ', ' : '') + sourceConstructorParams : '');
+    const allConstructorAssignments = constructorAssignments + (sourceConstructorAssignments ? '\n' + sourceConstructorAssignments : '');
+
     return `${packageDeclaration}${importsStr}
 @Service
 public class ${className} {
 ${fields}${sourceFields}
     
-    public ${className}(${constructorParams}) {
-${constructorAssignments}
+    public ${className}(${allConstructorParams}) {
+${allConstructorAssignments}
     }
-${initMethod}
-${destroyMethod}
 ${sourceMethods}
 ${destinationMethods}
-${helperMethods}
 }
 `;
 }

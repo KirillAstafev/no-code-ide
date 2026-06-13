@@ -78,12 +78,5 @@ export const DATA_SOURCE_COMMANDS: DataSourceCommand[] = [
         name: 'NEVA_GET_DATE_TIME',
         description: 'Запрос текущих даты и времени с ККТ',
         parameters: []
-    },
-    {
-        name: 'NEVA_SET_DATE_TIME',
-        description: 'Установка даты и времени на ККТ',
-        parameters: [
-            { name: 'syncWithSystem', type: 'boolean', defaultValue: true }
-        ]
     }
 ];
