@@ -1,5 +1,5 @@
 import {app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent} from "electron";
-import {buildProject, createProject, loadProject, saveProject} from "./utils/project.js";
+import {buildProject, createProject, loadProject, saveProject, runTest} from "./utils/project.js";
 import {
     addGitFiles,
     cloneGitRepository,
@@ -68,9 +68,5 @@ app.on("ready", () => {
         createWindow();
     });
 
-    ipcMain.handle('runTest', async (_: IpcMainInvokeEvent, testId: string) => {
-        console.log('Запуск теста с ID:', testId);
-        // TODO: Реализовать логику запуска теста
-        return { success: true };
-    });
+    ipcMain.handle('runTest', async (_: IpcMainInvokeEvent, project: Project) => await runTest(_, project));
 });

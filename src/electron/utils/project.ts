@@ -422,3 +422,160 @@ export const buildProject = async (
         return {success: false, error: (error as Error).message};
     }
 };
+
+export const runTest = async (
+    event: IpcMainInvokeEvent,
+    project: Project
+): Promise<{ success: boolean; path?: string; error?: string }> => {
+    try {
+        const projectDir = project.location;
+        const generatedDir = path.join(projectDir, 'generated');
+
+        // Проверяем, что сгенерированный проект существует
+        try {
+            await fs.stat(generatedDir);
+        } catch (err) {
+            throw new Error('Сгенерированный проект не найден. Выполните сборку проекта (Build) перед запуском теста.');
+        }
+
+        // Получаем папку с распакованным шаблоном (это родительская папка для src, build.gradle и т.д.)
+        const generatedItems = await fs.readdir(generatedDir);
+        const templateFolder = generatedItems.find(item =>
+            fs.stat(path.join(generatedDir, item)).then(s => s.isDirectory()).catch(() => false)
+        );
+
+        if (!templateFolder) {
+            throw new Error('Не найдена папка с распакованным шаблоном Spring Boot');
+        }
+
+        const templatePath = path.join(generatedDir, templateFolder);
+
+        const resourcesDir = path.join(templatePath, 'src', 'main', 'resources');
+        await fs.mkdir(resourcesDir, {recursive: true});
+
+        const applicationTestPropertiesPath = path.join(resourcesDir, 'application-test.properties');
+        const testAddresses = project.testAddresses || {};
+
+        const lines: string[] = [];
+        lines.push('# Test configuration');
+
+        if (project.sources && project.sources.length > 0) {
+            project.sources.forEach(source => {
+                const key = `${source.name}`;
+                if (testAddresses[key]) {
+                    const [host, port] = testAddresses[key].split(':');
+                    lines.push(`app.sources.${source.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.ipAddress=${host || 'localhost'}`);
+                    lines.push(`app.sources.${source.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.tcpPort=${parseInt(port) || source.tcpPort}`);
+                }
+            });
+        }
+
+        if (project.destinations && project.destinations.length > 0) {
+            project.destinations.forEach(destination => {
+                const key = `${destination.name}`;
+                if (testAddresses[key]) {
+                    const destName = destination.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    
+                    if (destination.targetType === 'POSTGRESQL') {
+                        const [host, portAndDb] = testAddresses[key].split(':');
+                        const port = portAndDb ? portAndDb.split('/')[0] : '5432';
+                        lines.push(`app.postgresql.${destName}.host=${host || 'localhost'}`);
+                        lines.push(`app.postgresql.${destName}.port=${parseInt(port) || 5432}`);
+                        lines.push(`app.postgresql.${destName}.database=${destination.postgresql?.databaseName || 'testdb'}`);
+                        lines.push(`app.postgresql.${destName}.schema=${destination.postgresql?.schemaName || 'public'}`);
+                        lines.push(`app.postgresql.${destName}.table=${destination.postgresql?.tableName || 'test_table'}`);
+                        lines.push(`app.postgresql.${destName}.column=${destination.postgresql?.columnName || 'data'}`);
+                    } else if (destination.targetType === 'KAFKA') {
+                        lines.push(`app.kafka.${destName}.bootstrap-servers=${testAddresses[key]}`);
+                        lines.push(`app.kafka.${destName}.topic=${destination.kafka?.topic || 'test-topic'}`);
+                    } else if (destination.targetType === 'RABBITMQ') {
+                        lines.push(`spring.rabbitmq.${destName}.host=${testAddresses[key].split(':')[0] || 'localhost'}`);
+                        lines.push(`spring.rabbitmq.${destName}.port=${parseInt(testAddresses[key].split(':')[1]) || 5672}`);
+                        lines.push(`app.rabbitmq.${destName}.queue=${destination.rabbitmq?.queueName || 'test-queue'}`);
+                    } else if (destination.targetType === 'REDIS') {
+                        lines.push(`spring.redis.${destName}.host=${testAddresses[key].split(':')[0] || 'localhost'}`);
+                        lines.push(`spring.redis.${destName}.port=${parseInt(testAddresses[key].split(':')[1]) || 6379}`);
+                        lines.push(`app.redis.${destName}.key=${destination.redis?.key || 'test-key'}`);
+                    } else if (destination.targetType === 'CASSANDRA') {
+                        lines.push(`spring.data.cassandra.${destName}.contact-points=${testAddresses[key]}`);
+                        lines.push(`spring.data.cassandra.${destName}.keyspace=${destination.cassandra?.keyspace || 'test_keyspace'}`);
+                        lines.push(`spring.data.cassandra.${destName}.table=${destination.cassandra?.table || 'test_table'}`);
+                    }
+                }
+            });
+        }
+
+        await fs.writeFile(applicationTestPropertiesPath, lines.join('\n'), 'utf-8');
+
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (window) {
+            window.webContents.send('run-test-progress', {
+                type: 'stage',
+                payload: {stage: 'configuring'}
+            });
+        }
+
+        const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+
+        console.log(`Запуск Spring Boot с профилем test в папке: ${templatePath}`);
+
+        const testProcess = spawn(gradlewCmd, ['bootRun', '--args=\'--spring.profiles.active=test\''], {
+            cwd: templatePath,
+            stdio: 'pipe',
+            shell: true,
+            env: {...process.env, NO_COLOR: '1'}
+        });
+
+        if (window) {
+            window.webContents.send('run-test-progress', {
+                type: 'stage',
+                payload: {stage: 'running'}
+            });
+        }
+
+        testProcess.stdout.on('data', (data) => {
+            console.log(data.toString());
+            if (window) {
+                window.webContents.send('run-test-progress', {
+                    type: 'output',
+                    payload: {output: data.toString()}
+                });
+            }
+        });
+
+        testProcess.stderr.on('data', (data) => {
+            console.error(data.toString());
+            if (window) {
+                window.webContents.send('run-test-progress', {
+                    type: 'output',
+                    payload: {output: data.toString(), isError: true}
+                });
+            }
+        });
+
+        testProcess.on('close', (code) => {
+            console.log(`Spring Boot процесс завершен с кодом: ${code}`);
+            if (window) {
+                window.webContents.send('run-test-progress', {
+                    type: 'finish',
+                    payload: {success: code === 0}
+                });
+            }
+        });
+
+        testProcess.on('error', (error) => {
+            console.error('Ошибка запуска Spring Boot:', error);
+            if (window) {
+                window.webContents.send('run-test-progress', {
+                    type: 'error',
+                    payload: {message: error.message}
+                });
+            }
+        });
+
+        return {success: true, path: templatePath};
+    } catch (error) {
+        console.error('Ошибка запуска теста:', error);
+        return {success: false, error: (error as Error).message};
+    }
+};

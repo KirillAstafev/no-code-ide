@@ -21,5 +21,5 @@ type ChannelPayloadMapping = {
     getGitLog: Promise<{ hash: string, message: string, author: string, date: string }[]>
     isGitRepository: Promise<boolean>
     createWindow: Promise<any>
-    runTest: Promise<{ success: boolean }>
+    runTest: Promise<{ success: boolean; path?: string; error?: string }>
 }

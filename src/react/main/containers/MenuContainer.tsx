@@ -16,6 +16,7 @@ function MenuContainer() {
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
     const [isCloneGitModalOpen, setIsCloneGitModalOpen] = useState(false);
     const [isTestSettingsOpen, setIsTestSettingsOpen] = useState(false);
+    const [isTestRunning, setIsTestRunning] = useState(false);
 
     useEffect(() => {
         const handleBuildProgress = (_event: any, { type, payload }: any) => {
@@ -38,6 +39,33 @@ function MenuContainer() {
             window.electron.off('build-progress', handleBuildProgress);
         };
     }, [setStage, finishBuild]);
+
+    useEffect(() => {
+        const handleRunTestProgress = (_event: any, { type, payload }: any) => {
+            switch (type) {
+                case 'stage':
+                    console.log(`Тест: ${payload.stage}`);
+                    break;
+                case 'output':
+                    console.log(payload.output);
+                    break;
+                case 'finish':
+                    console.log(`Тест завершен: ${payload.success}`);
+                    setIsTestRunning(false);
+                    break;
+                case 'error':
+                    console.error(`Ошибка теста: ${payload.message}`);
+                    setIsTestRunning(false);
+                    break;
+            }
+        };
+
+        window.electron.on('run-test-progress', handleRunTestProgress);
+
+        return () => {
+            window.electron.off('run-test-progress', handleRunTestProgress);
+        };
+    }, []);
 
     const handleOpenProject = async () => {
         const result = await window.electron.openProjectDialog();
@@ -131,6 +159,26 @@ function MenuContainer() {
         setIsTestSettingsOpen(true);
     };
 
+    const handleRunTest = async () => {
+        if (!project) return;
+
+        setIsTestRunning(true);
+
+        try {
+            const result = await window.electron.runTest(project);
+
+            if (result.success) {
+                alert(`Тест запущен. Путь к приложению: ${result.path}`);
+            } else {
+                alert(`Ошибка запуска теста: ${result.error}`);
+            }
+        } catch (err) {
+            alert(`Ошибка запуска теста: ${(err as Error).message}`);
+        } finally {
+            setIsTestRunning(false);
+        }
+    };
+
     return (
         <>
             <div style={{ padding: '4px 8px', display: 'flex', gap: '4px' }} id="menu-container">
@@ -195,6 +243,11 @@ function MenuContainer() {
                             {
                                 text: 'Настроить',
                                 action: handleTestSettings,
+                            },
+                            {
+                                text: 'Запустить',
+                                disabled: !isLoaded || isTestRunning,
+                                action: handleRunTest,
                             },
                         ],
                     ]}
