@@ -355,27 +355,38 @@ export async function generateJavaFiles(
     generatedProjectInfo: GeneratedProjectInfo,
     outputDir: string,
 ): Promise<void> {
-    const {modules, sources, destinations, mainPackage} = generatedProjectInfo;
+    const { modules, sources, destinations, mainPackage } = generatedProjectInfo;
     const basePackage = mainPackage;
 
     const javaBaseDir = path.join(outputDir, 'src', 'main', 'java', ...basePackage.split('.'));
     const resourcesDir = path.join(outputDir, 'src', 'main', 'resources');
     const configDir = path.join(javaBaseDir, 'config');
 
-    await fs.mkdir(javaBaseDir, {recursive: true});
-    await fs.mkdir(resourcesDir, {recursive: true});
-    await fs.mkdir(configDir, {recursive: true});
+    await fs.mkdir(javaBaseDir, { recursive: true });
+    await fs.mkdir(resourcesDir, { recursive: true });
+    await fs.mkdir(configDir, { recursive: true });
 
+    // Генерация application.properties
     const applicationPropertiesPath = path.join(resourcesDir, 'application.properties');
     const applicationPropertiesContent = generateApplicationProperties(project, sources, destinations);
     await fs.writeFile(applicationPropertiesPath, applicationPropertiesContent, 'utf-8');
 
+    // Генерация конфигурационных классов для каждого типа приёмника
     const configClasses = generateConfigurationClasses(destinations, basePackage);
     for (const [fileName, content] of Object.entries(configClasses)) {
         const configPath = path.join(configDir, fileName);
         await fs.writeFile(configPath, content, 'utf-8');
     }
 
+    // Генерация классов для приёмников
+    const destinationPromises = destinations.map(destination => {
+        const destinationPath = path.join(javaBaseDir, destination.className + '.java');
+        return fs.writeFile(destinationPath, generateDestinationClass(destination, basePackage), 'utf-8');
+    });
+
+    await Promise.all(destinationPromises);
+
+    // Генерация классов для источников (ККТ)
     if (sources.length > 0) {
         const sourcePromises = sources.map(source => {
             const sourceClassName = `${normalizeIdentifier(source.name)}Source`;
@@ -385,13 +396,7 @@ export async function generateJavaFiles(
         await Promise.all(sourcePromises);
     }
 
-    const destinationPromises = destinations.map(destination => {
-        const destinationPath = path.join(javaBaseDir, destination.className + '.java');
-        return fs.writeFile(destinationPath, generateDestinationClass(destination, basePackage), 'utf-8');
-    });
-
-    await Promise.all(destinationPromises);
-
+    // Генерация сервисных классов модулей
     const modulePromises = modules.flatMap(module => [
         (function () {
             const serviceClassName = generateJavaClassNameFromId(module.id) + 'Service';
@@ -1056,10 +1061,10 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
     const imports = new Set<string>();
     imports.add('import org.springframework.stereotype.Service;');
     imports.add('import org.springframework.beans.factory.annotation.Qualifier;');
+    imports.add('import org.springframework.scheduling.annotation.Scheduled;');
 
     const importsStr = Array.from(imports).join('\n') + '\n\n';
 
-    // Поля для приёмников
     let fields = '';
     let constructorParams = '';
     let constructorAssignments = '';
@@ -1079,7 +1084,6 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
         constructorAssignments += `        this.${fieldName} = ${fieldName};`;
     });
 
-    // Поля для источников
     let sourceFields = '';
     let sourceConstructorParams = '';
     let sourceConstructorAssignments = '';
@@ -1106,6 +1110,7 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
         const commandName = source.commandName;
 
         sourceMethods += `
+    @Scheduled(fixedRate = 10000)
     public void ${methodName}() {
         System.out.println("${commandName} - обработка данных от источника ${normalizeIdentifier(source.sourceName)}");
         
@@ -1115,111 +1120,70 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
         }
         
         String result = "";
-        
-        try {
-            switch ("${commandName}") {`;
+        `;
 
         switch (commandName) {
             case "NEVA_GET_STATUS":
                 sourceMethods += `
-                case "NEVA_GET_STATUS":
-                    result = ${sourceField}.getStatus();
-                    break;`;
+                result = ${sourceField}.getStatus();`;
                 break;
             case "NEVA_GET_SHORT_STATUS":
                 sourceMethods += `
-                case "NEVA_GET_SHORT_STATUS":
-                    result = ${sourceField}.getShortStatus();
-                    break;`;
+                result = ${sourceField}.getShortStatus();`;
                 break;
             case "NEVA_GET_CASH_SUM":
                 sourceMethods += `
-                case "NEVA_GET_CASH_SUM":
-                    result = ${sourceField}.getCashSum();
-                    break;`;
+                result = ${sourceField}.getCashSum();`;
                 break;
             case "NEVA_GET_SHIFT_STATE":
                 sourceMethods += `
-                case "NEVA_GET_SHIFT_STATE":
-                    result = ${sourceField}.getShiftState();
-                    break;`;
+                result = ${sourceField}.getShiftState();`;
                 break;
             case "NEVA_OPEN_SHIFT":
                 sourceMethods += `
-                case "NEVA_OPEN_SHIFT":
-                    result = ${sourceField}.openShift();
-                    break;`;
+                result = ${sourceField}.openShift();`;
                 break;
             case "NEVA_CLOSE_SHIFT":
                 sourceMethods += `
-                case "NEVA_CLOSE_SHIFT":
-                    result = ${sourceField}.closeShift();
-                    break;`;
+                result = ${sourceField}.closeShift();`;
                 break;
             case "NEVA_GET_REGISTRATIONS_COUNT":
                 sourceMethods += `
-                case "NEVA_GET_REGISTRATIONS_COUNT":
-                    result = ${sourceField}.getRegistrationsCount();
-                    break;`;
+                result = ${sourceField}.getRegistrationsCount();`;
                 break;
             case "NEVA_GET_REGISTRATIONS_SUM":
                 sourceMethods += `
-                case "NEVA_GET_REGISTRATIONS_SUM":
-                    result = ${sourceField}.getRegistrationsSum();
-                    break;`;
+                result = ${sourceField}.getRegistrationsSum();`;
                 break;
             case "NEVA_GET_PAYMENT_SUM":
                 sourceMethods += `
-                case "NEVA_GET_PAYMENT_SUM":
-                    result = ${sourceField}.getPaymentSum();
-                    break;`;
+                result = ${sourceField}.getPaymentSum();`;
                 break;
             case "NEVA_GET_CASHIN_SUM":
                 sourceMethods += `
-                case "NEVA_GET_CASHIN_SUM":
-                    result = ${sourceField}.getCashInSum();
-                    break;`;
+                result = ${sourceField}.getCashInSum();`;
                 break;
             case "NEVA_GET_CASHOUT_SUM":
                 sourceMethods += `
-                case "NEVA_GET_CASHOUT_SUM":
-                    result = ${sourceField}.getCashOutSum();
-                    break;`;
+                result = ${sourceField}.getCashOutSum();`;
                 break;
             case "NEVA_GET_REVENUE":
                 sourceMethods += `
-                case "NEVA_GET_REVENUE":
-                    result = ${sourceField}.getRevenue();
-                    break;`;
+                result = ${sourceField}.getRevenue();`;
                 break;
             case "NEVA_GET_DATE_TIME":
                 sourceMethods += `
-                case "NEVA_GET_DATE_TIME":
-                    result = ${sourceField}.getDateTime();
-                    break;`;
-                break;
-            case "NEVA_SET_DATE_TIME":
-                sourceMethods += `
-                case "NEVA_SET_DATE_TIME":
-                    result = ${sourceField}.setDateTime();
-                    break;`;
+                result = ${sourceField}.getDateTime();`;
                 break;
             default:
                 sourceMethods += `
-                default:
-                    result = "Unknown command: ${commandName}";
-                    break;`;
+                result = "Unknown command: ${commandName}";`;
         }
 
         sourceMethods += `
-            }
-        } catch (Exception e) {
-            result = "Error executing command: " + e.getMessage();
-        }
-        
         System.out.println("Command result: " + result);
         
-        // Отправляем результат во все приёмники модуля`;
+        `;
 
         module.destinationConnections.forEach(destination => {
             const sendMethod = `sendDataTo${generateJavaClassNameFromId(destination.id)}`;
@@ -1231,6 +1195,7 @@ function generateModuleServiceClass(module: ModuleInfo, basePackage: string): st
     }`;
     });
 
+    // Методы для отправки данных в приёмники
     let destinationMethods = '';
     module.destinationConnections.forEach(destination => {
         const methodName = `sendDataTo${generateJavaClassNameFromId(destination.id)}`;
