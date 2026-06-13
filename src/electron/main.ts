@@ -1,14 +1,14 @@
 import {app, BrowserWindow, dialog, ipcMain, IpcMainInvokeEvent} from "electron";
-import {createProject, loadProject, saveProject, buildProject} from "./utils/project.js";
+import {buildProject, createProject, loadProject, saveProject} from "./utils/project.js";
 import {
-    initGitRepository,
     addGitFiles,
-    commitGit,
-    pushGit,
     cloneGitRepository,
-    getGitStatus,
+    commitGit,
     getGitLog,
-    isGitRepository
+    getGitStatus,
+    initGitRepository,
+    isGitRepository,
+    pushGit
 } from "./utils/git.js";
 import {createWindow, getWindow, setupWindowHandlers} from "./window/manager.js";
 
@@ -66,5 +66,11 @@ app.on("ready", () => {
     ipcMain.handle('cloneGitRepository', async (_: IpcMainInvokeEvent, url: string, path: string) => await cloneGitRepository(url, path));
     ipcMain.handle('createWindow', () => {
         createWindow();
+    });
+
+    ipcMain.handle('runTest', async (_: IpcMainInvokeEvent, testId: string) => {
+        console.log('Запуск теста с ID:', testId);
+        // TODO: Реализовать логику запуска теста
+        return { success: true };
     });
 });

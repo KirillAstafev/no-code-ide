@@ -1,21 +1,22 @@
-import {Button, DropdownMenu} from '@gravity-ui/uikit';
-import {useState, useEffect} from 'react';
+import { Button, DropdownMenu } from '@gravity-ui/uikit';
+import { useState, useEffect } from 'react';
 import CreateProjectPage from '../../project-creation/pages/CreateProjectPage';
-import {useProject} from "../../context/ProjectContext.tsx";
-import {useWindow} from "../../context/WindowContext.tsx";
-import {CloneGitProjectPage} from "../../git/components/CloneGitProjectPage.tsx";
-import {useBuildProgress} from "../context/BuildProgressContext";
+import { useProject } from "../../context/ProjectContext.tsx";
+import { useWindow } from "../../context/WindowContext.tsx";
+import { CloneGitProjectPage } from "../../git/components/CloneGitProjectPage.tsx";
+import { useBuildProgress } from "../context/BuildProgressContext";
+import TestSettingsPage from '../../test/TestSettingsPage';
 
 function MenuContainer() {
-    const {loadProject, saveProject, clearProject, state} = useProject();
-    const {state: windowState} = useWindow();
-    const {isLoaded, isModified, project} = state;
-    const {windowId} = windowState;
-    const {startBuild, setStage, finishBuild} = useBuildProgress();
+    const { loadProject, saveProject, clearProject, state } = useProject();
+    const { state: windowState } = useWindow();
+    const { isLoaded, isModified, project } = state;
+    const { windowId } = windowState;
+    const { startBuild, setStage, finishBuild } = useBuildProgress();
     const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
     const [isCloneGitModalOpen, setIsCloneGitModalOpen] = useState(false);
+    const [isTestSettingsOpen, setIsTestSettingsOpen] = useState(false);
 
-    // Обработка событий прогресса сборки
     useEffect(() => {
         const handleBuildProgress = (_event: any, { type, payload }: any) => {
             switch (type) {
@@ -126,9 +127,13 @@ function MenuContainer() {
         }
     };
 
+    const handleTestSettings = () => {
+        setIsTestSettingsOpen(true);
+    };
+
     return (
         <>
-            <div style={{padding: '4px 8px', display: 'flex', gap: '4px'}} id="menu-container">
+            <div style={{ padding: '4px 8px', display: 'flex', gap: '4px' }} id="menu-container">
                 <DropdownMenu
                     switcher={
                         <Button view="flat" size="l">
@@ -182,6 +187,22 @@ function MenuContainer() {
                 <DropdownMenu
                     switcher={
                         <Button view="flat" size="l">
+                            Тестирование
+                        </Button>
+                    }
+                    items={[
+                        [
+                            {
+                                text: 'Настроить',
+                                action: handleTestSettings,
+                            },
+                        ],
+                    ]}
+                />
+
+                <DropdownMenu
+                    switcher={
+                        <Button view="flat" size="l">
                             Сборка
                         </Button>
                     }
@@ -216,6 +237,11 @@ function MenuContainer() {
                 open={isCloneGitModalOpen}
                 onClose={() => setIsCloneGitModalOpen(false)}
                 onClone={handleCloneGitProject}
+            />
+
+            <TestSettingsPage
+                open={isTestSettingsOpen}
+                onClose={() => setIsTestSettingsOpen(false)}
             />
         </>
     );

@@ -18,6 +18,7 @@ interface Window {
         getGitStatus: (path: string) => Promise<{ modified: string[], added: string[], deleted: string[], untracked: string[] }>;
         getGitLog: (path: string, limit: number) => Promise<{ hash: string, message: string, author: string, date: string }[]>;
         isGitRepository: (path: string) => Promise<boolean>;
+        runTest: (testId: string) => Promise<{ success: boolean }>;
         on: (channel: string, callback: (event: any, ...args: any[]) => void) => void;
         off: (channel: string, callback: (event: any, ...args: any[]) => void) => void;
     }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, type ReactNode } from 'react';
+import React, {createContext, type ReactNode, useContext, useReducer} from 'react';
 
 type ProjectAction =
     | { type: 'LOAD_PROJECT'; payload: Project }

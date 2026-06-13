@@ -37,6 +37,7 @@ interface Project {
     destinations: DataDestination[];
     dependencies: ExternalDependency[];
     schema: Schema;
+    testAddresses?: Record<string, string>;
 }
 
 interface Module {

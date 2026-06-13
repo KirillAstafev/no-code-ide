@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import unzipper from 'unzipper';
 import {spawn} from "node:child_process";
 import {generateJavaProject, generateJavaFiles, findMainClassName} from './javaGenerator.js';
+import {log} from "electron-builder";
 
 function generateSchemaFromProject(project: Project): Schema {
     const nodes: SchemaNode[] = [];
@@ -84,7 +85,7 @@ export const createProject = async (
         const basePath = project.location.replace(/^~/, process.env.HOME || process.env.USERPROFILE || '');
         const projectDir = path.join(basePath, project.name);
 
-        await fs.mkdir(projectDir, { recursive: true });
+        await fs.mkdir(projectDir, {recursive: true});
 
         const projectConfig = {
             name: project.name,
@@ -117,11 +118,11 @@ export const createProject = async (
         await fs.writeFile(gitignorePath, gitignoreContent, 'utf-8');
 
         const modulesDir = path.join(projectDir, 'modules');
-        await fs.mkdir(modulesDir, { recursive: true });
+        await fs.mkdir(modulesDir, {recursive: true});
 
         const modulePromises = project.modules.map(async (module) => {
             const moduleDir = path.join(modulesDir, module.name);
-            await fs.mkdir(moduleDir, { recursive: true });
+            await fs.mkdir(moduleDir, {recursive: true});
 
             const moduleData = {
                 name: module.name,
@@ -139,10 +140,10 @@ export const createProject = async (
 
         await Promise.all(modulePromises);
 
-        return { success: true, path: projectDir };
+        return {success: true, path: projectDir};
     } catch (error) {
         console.error('Ошибка создания проекта:', error);
-        return { success: false, error: (error as Error).message };
+        return {success: false, error: (error as Error).message};
     }
 };
 
@@ -184,6 +185,17 @@ export const loadProject = async (
         const sources: DataSource[] = projectConfig.sources || [];
         const destinations: DataDestination[] = projectConfig.destinations || [];
 
+        let testAddresses: Record<string, string> = {};
+        try {
+            const testConfigsPath = path.join(projectPath, 'test/test.json');
+            const testConfigsRaw = await fs.readFile(testConfigsPath, 'utf-8');
+            testAddresses = JSON.parse(testConfigsRaw);
+        } catch (error: any) {
+            if (error?.code !== 'ENOENT') {
+                console.error('Ошибка загрузки тестовых конфигураций:', error);
+            }
+        }
+
         const project: Project = {
             name: projectConfig.name,
             location: projectPath,
@@ -191,7 +203,8 @@ export const loadProject = async (
             sources,
             destinations,
             dependencies,
-            schema
+            schema,
+            testAddresses
         };
 
         return {
@@ -200,7 +213,7 @@ export const loadProject = async (
         };
     } catch (error) {
         console.error('Ошибка загрузки проекта:', error);
-        return { success: false, error: (error as Error).message };
+        return {success: false, error: (error as Error).message};
     }
 }
 
@@ -242,7 +255,7 @@ export const saveProject = async (
         const modulesDir = path.join(projectDir, 'modules');
         const modulesPromises = project.modules.map(async (module) => {
             const moduleDir = path.join(modulesDir, module.name);
-            await fs.mkdir(moduleDir, { recursive: true });
+            await fs.mkdir(moduleDir, {recursive: true});
             await fs.writeFile(
                 path.join(moduleDir, `${module.name}.json`),
                 JSON.stringify(module, null, 2),
@@ -252,10 +265,18 @@ export const saveProject = async (
 
         await Promise.all(modulesPromises);
 
-        return { success: true, path: projectDir };
+        const testDir = path.join(projectDir, 'test');
+        await fs.mkdir(testDir, {recursive: true});
+        await fs.writeFile(
+            path.join(testDir, 'test.json'),
+            JSON.stringify(project.testAddresses || {}, null, 2),
+            'utf-8'
+        );
+
+        return {success: true, path: projectDir};
     } catch (error) {
         console.error('Ошибка сохранения проекта:', error);
-        return { success: false, error: (error as Error).message };
+        return {success: false, error: (error as Error).message};
     }
 };
 
@@ -268,18 +289,18 @@ export const buildProject = async (
         const generatedDir = path.join(projectDir, 'generated');
 
         try {
-            await fs.rm(generatedDir, { recursive: true, force: true });
+            await fs.rm(generatedDir, {recursive: true, force: true});
         } catch (err) {
             // Игнорируем ошибки при удалении несуществующей папки
         }
 
-        await fs.mkdir(generatedDir, { recursive: true });
+        await fs.mkdir(generatedDir, {recursive: true});
 
         const dependencyCodes = project.dependencies.map(d => d.dependencyCode).filter(Boolean);
         const dependenciesParam = dependencyCodes.length > 0 ? dependencyCodes.join(',') : 'web';
 
         const initializrUrl = 'https://start.spring.io/starter.zip';
-        
+
         const formData = new FormData();
         formData.append('type', 'gradle-project');
         formData.append('language', 'java');
@@ -308,13 +329,13 @@ export const buildProject = async (
         const buffer = Buffer.from(arrayBuffer);
 
         const zip = await unzipper.Open.buffer(buffer);
-        await zip.extract({ path: generatedDir });
+        await zip.extract({path: generatedDir});
 
         const generatedItems = await fs.readdir(generatedDir);
-        const templateFolder = generatedItems.find(item => 
+        const templateFolder = generatedItems.find(item =>
             fs.stat(path.join(generatedDir, item)).then(s => s.isDirectory()).catch(() => false)
         );
-        
+
         if (!templateFolder) {
             throw new Error('Не найдена папка с распакованным шаблоном Spring Boot');
         }
@@ -329,29 +350,29 @@ export const buildProject = async (
         if (window) {
             window.webContents.send('build-progress', {
                 type: 'stage',
-                payload: { stage: 'generating' }
+                payload: {stage: 'generating'}
             });
         }
 
         if (window) {
             window.webContents.send('build-progress', {
                 type: 'stage',
-                payload: { stage: 'building' }
+                payload: {stage: 'building'}
             });
         }
 
         const gradlewCmd = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
-        
+
         console.log(`Выполнение Gradle сборки в папке: ${templatePath}`);
-        
+
         await new Promise((resolve, reject) => {
             const gradleProcess = spawn(gradlewCmd, ['build'], {
                 cwd: templatePath,
                 stdio: 'pipe',
                 shell: true,
-                env: { ...process.env, NO_COLOR: '1' }
+                env: {...process.env, NO_COLOR: '1'}
             });
-            
+
             gradleProcess.stdout.on('data', (data) => {
                 console.log(data.toString());
                 const output = data.toString();
@@ -360,16 +381,16 @@ export const buildProject = async (
                     if (window) {
                         window.webContents.send('build-progress', {
                             type: 'progress',
-                            payload: { progress: 70 }
+                            payload: {progress: 70}
                         });
                     }
                 }
             });
-            
+
             gradleProcess.stderr.on('data', (data) => {
                 console.error(data.toString());
             });
-            
+
             gradleProcess.on('close', (code: number) => {
                 if (code === 0) {
                     console.log('Gradle сборка завершена успешно');
@@ -378,7 +399,7 @@ export const buildProject = async (
                     if (finishWindow) {
                         finishWindow.webContents.send('build-progress', {
                             type: 'progress',
-                            payload: { progress: 100 }
+                            payload: {progress: 100}
                         });
                         finishWindow.webContents.send('build-progress', {
                             type: 'finish'
@@ -386,18 +407,18 @@ export const buildProject = async (
                     }
                     resolve(true);
                 } else {
-                    reject(new Error(`Gradle сборка завершилась с кодом ${code}`));
+                    reject(new Error(`Ошибка при сборке проекта`));
                 }
             });
-            
+
             gradleProcess.on('error', (error: Error) => {
                 reject(new Error(`Ошибка запуска Gradle: ${error.message}`));
             });
         });
 
-        return { success: true, path: generatedDir };
+        return {success: true, path: generatedDir};
     } catch (error) {
         console.error('Ошибка сборки проекта:', error);
-        return { success: false, error: (error as Error).message };
+        return {success: false, error: (error as Error).message};
     }
 };
