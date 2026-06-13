@@ -13,6 +13,7 @@ dist-electron
 dist-react
 dist-ssr
 dist-electron-build
+libs
 *.local
 
 # Editor directories and files

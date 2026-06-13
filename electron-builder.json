@@ -7,9 +7,17 @@
   "files": [
     "dist-react/**/*",
     "dist-electron/**/*",
-    "package.json"
+    "package.json",
+    "libs/**/*"
   ],
-  "extraResources": ["dist-electron/preload.cjs"],
+  "extraResources": [
+    {
+      "from": "libs",
+      "to": "libs",
+      "filter": ["**/*"]
+    },
+    "dist-electron/preload.cjs"
+  ],
   "win": {
     "target": [
       {
