@@ -575,8 +575,7 @@ export const runTest = async (
         });
 
         testProcess.on('close', (code) => {
-            console.log(`Spring Boot процесс завершен с кодом: ${code}`);
-            testProcess = null;
+            testProcess?.kill();
             if (window) {
                 window.webContents.send('run-test-progress', {
                     type: 'finish',
@@ -587,7 +586,7 @@ export const runTest = async (
 
         testProcess.on('error', (error) => {
             console.error('Ошибка запуска Spring Boot:', error);
-            testProcess = null;
+            testProcess?.kill();
             if (window) {
                 window.webContents.send('run-test-progress', {
                     type: 'error',
