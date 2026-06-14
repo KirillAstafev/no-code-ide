@@ -10,12 +10,16 @@ import org.springframework.beans.factory.annotation.Value;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import ru.neva.drivers.fptr.Fptr;
-import ru.neva.drivers.fptr.IFptr;\n`;
+import ru.neva.drivers.fptr.IFptr;
 
-    // Генерация полей для настроек
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Random;`;
+
     const fields = `
     private IFptr fptr;
     private boolean connected = false;
+    private final Random random = new Random();
     
     @Value("${"$"}{app.sources.${propertyName}.ipAddress}")
     private String ipAddress;
@@ -75,105 +79,80 @@ import ru.neva.drivers.fptr.IFptr;\n`;
         }
     }`;
 
-    // Методы для всех поддерживаемых команд (возвращают результат)
+    // Методы для всех поддерживаемых команд (возвращают тестовые значения)
     const commandMethods = `
     public boolean isConnected() {
-        return connected;
+        return true;
     }
     
     private void checkConnection() {
-        if (!connected || fptr == null) {
-            throw new RuntimeException("KKT ${source.name} not connected");
-        }
+        // В тестовом режиме всегда считаем подключение успешным
     }
     
     // 1. Запрос общей информации и статуса ККТ
     public String getStatus() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_STATUS);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("KKT Status\\n");
-        sb.append("Operator ID: ").append(fptr.getParamInt(IFptr.LIBFPTR_PARAM_OPERATOR_ID)).append("\\n");
-        sb.append("Shift state: ").append(fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE)).append("\\n");
-        sb.append("Shift number: ").append(fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER)).append("\\n");
-        sb.append("Receipt sum: ").append(fptr.getParamDouble(IFptr.LIBFPTR_PARAM_RECEIPT_SUM)).append("\\n");
-        sb.append("Cash drawer opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED)).append("\\n");
-        sb.append("Paper present: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT)).append("\\n");
-        sb.append("Cover opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED)).append("\\n");
-        sb.append("Serial number: ").append(fptr.getParamString(IFptr.LIBFPTR_PARAM_SERIAL_NUMBER)).append("\\n");
-        sb.append("Model: ").append(fptr.getParamString(IFptr.LIBFPTR_PARAM_MODEL_NAME)).append("\\n");
-        sb.append("Firmware: ").append(fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION));
-        
-        return sb.toString();
+        return String.format("""
+            KKT Status
+            Operator ID: %d
+            Shift state: %d
+            Shift number: %d
+            Receipt sum: %.2f
+            Cash drawer opened: %s
+            Paper present: %s
+            Cover opened: %s
+            Serial number: %s
+            Model: %s
+            Firmware: %s
+            """,
+            1,
+            IFptr.LIBFPTR_SS_OPENED,
+            random.nextInt(100) + 1,
+            12500.75 + random.nextDouble() * 5000,
+            random.nextBoolean(),
+            true,
+            false,
+            "NEVA-03F-" + (100000 + random.nextInt(900000)),
+            "NEVA-03-F",
+            "v1." + (10 + random.nextInt(10)) + "." + random.nextInt(20)
+        );
     }
     
     // 2. Короткий запрос статуса ККТ
     public String getShortStatus() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHORT_STATUS);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("KKT Short Status\\n");
-        sb.append("Cash drawer opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_CASHDRAWER_OPENED)).append("\\n");
-        sb.append("Paper present: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_RECEIPT_PAPER_PRESENT)).append("\\n");
-        sb.append("Paper near end: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_PAPER_NEAR_END)).append("\\n");
-        sb.append("Cover opened: ").append(fptr.getParamBool(IFptr.LIBFPTR_PARAM_COVER_OPENED));
-        
-        return sb.toString();
+        return String.format("""
+            KKT Short Status
+            Cash drawer opened: %s
+            Paper present: %s
+            Paper near end: %s
+            Cover opened: %s
+            """,
+            random.nextBoolean(),
+            true,
+            random.nextDouble() < 0.1,
+            false
+        );
     }
     
     // 3. Запрос суммы наличных в денежном ящике
     public String getCashSum() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASH_SUM);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "Cash sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        return String.format("Cash sum: %.2f", 50000.00 + random.nextDouble() * 30000);
     }
     
     // 4. Запрос состояния смены
     public String getShiftState() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_SHIFT_STATE);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        
-        long state = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_STATE);
-        long number = fptr.getParamInt(IFptr.LIBFPTR_PARAM_SHIFT_NUMBER);
-        String stateStr = "";
-        if (state == IFptr.LIBFPTR_SS_CLOSED) stateStr = "CLOSED";
-        else if (state == IFptr.LIBFPTR_SS_OPENED) stateStr = "OPENED";
-        else if (state == IFptr.LIBFPTR_SS_EXPIRED) stateStr = "EXPIRED";
-        
+        long state = IFptr.LIBFPTR_SS_OPENED;
+        long number = random.nextInt(500) + 1;
+        String stateStr = "OPENED";
         return "Shift state: " + stateStr + ", number: " + number;
     }
     
     // 5. Открытие смены
     public String openShift() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
-        if (fptr.openShift() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
         return "Shift opened successfully";
     }
     
     // 6. Закрытие смены
     public String closeShift() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_OPERATOR_ID, 1);
-        if (fptr.close() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
         return "Shift closed successfully";
     }
     
@@ -183,13 +162,7 @@ import ru.neva.drivers.fptr.IFptr;\n`;
     }
     
     public String getRegistrationsCount(int receiptType) {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_COUNT);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, receiptType);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "Registrations count: " + fptr.getParamInt(IFptr.LIBFPTR_PARAM_COUNT);
+        return String.format("Registrations count: %d", random.nextInt(150) + 10);
     }
     
     // 8. Запрос суммы регистраций
@@ -198,13 +171,7 @@ import ru.neva.drivers.fptr.IFptr;\n`;
     }
     
     public String getRegistrationsSum(int receiptType) {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REGISTRATIONS_SUM);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, receiptType);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "Registrations sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        return String.format("Registrations sum: %.2f", 8500.50 + random.nextDouble() * 10000);
     }
     
     // 9. Запрос суммы платежей
@@ -213,54 +180,30 @@ import ru.neva.drivers.fptr.IFptr;\n`;
     }
     
     public String getPaymentSum(int paymentType, int receiptType) {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_PAYMENT_SUM);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_PAYMENT_TYPE, paymentType);
-        fptr.setParam(IFptr.LIBFPTR_PARAM_RECEIPT_TYPE, receiptType);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "Payment sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        String paymentTypeName = paymentType == IFptr.LIBFPTR_PT_CASH ? "Cash" : "Card";
+        return String.format("Payment sum (%s): %.2f", paymentTypeName, 12500.75 + random.nextDouble() * 8000);
     }
     
     // 10. Запрос суммы внесений
     public String getCashInSum() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHIN_SUM);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "Cash in sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        return String.format("Cash in sum: %.2f", 15000.00 + random.nextDouble() * 10000);
     }
     
     // 11. Запрос суммы выплат
     public String getCashOutSum() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_CASHOUT_SUM);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "Cash out sum: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        return String.format("Cash out sum: %.2f", 3000.00 + random.nextDouble() * 5000);
     }
     
     // 12. Запрос суммы выручки
     public String getRevenue() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_REVENUE);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "Revenue: " + fptr.getParamDouble(IFptr.LIBFPTR_PARAM_SUM);
+        return String.format("Revenue: %.2f", 25000.00 + random.nextDouble() * 15000);
     }
     
     // 13. Запрос текущих даты и времени с ККТ
     public String getDateTime() {
-        checkConnection();
-        fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_DATE_TIME);
-        if (fptr.queryData() < 0) {
-            return "Error: " + fptr.errorDescription();
-        }
-        return "KKT Date/Time: " + fptr.getParamDateTime(IFptr.LIBFPTR_PARAM_DATE_TIME);
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+        return "KKT Date/Time: " + now.format(formatter);
     }`;
 
     return `${packageDeclaration}
