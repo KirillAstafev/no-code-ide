@@ -46,7 +46,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                 return null;
             case 'url':
                 if (!value) {
-                    return 'Введите URL подключения';
+                    return 'Введите адрес подключения (хост:порт)';
                 }
                 return null;
             default:
@@ -124,7 +124,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
 
                     <div style={{ marginBottom: '12px' }}>
                         <Text variant="body-2" style={{ marginBottom: '6px' }}>
-                            URL подключения
+                            Адрес подключения
                         </Text>
                         <TextInput
                             value={url}
@@ -132,7 +132,7 @@ export const AddDestinationPage: React.FC<AddDestinationPageProps> = ({
                             hasClear
                             style={{ width: '100%', marginBottom: '12px' }}
                             size="l"
-                            placeholder="http://localhost:5432"
+                            placeholder="localhost:5432"
                         />
                         {errors.url && (
                             <Text variant="caption-1" color="danger" style={{ marginTop: '4px' }}>

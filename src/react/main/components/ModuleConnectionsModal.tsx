@@ -467,9 +467,6 @@ export const ModuleConnectionsModal: React.FC<ModuleConnectionsModalProps> = ({
                                         onParamChange={(paramName, value) => handleSourceParamChange(sc.source.name, paramName, value)}
                                     />
                                 ))}
-                                {sourceConnections.filter(sc => sc.enabled).length === 0 && (
-                                    <Text variant="body-2" color="secondary">Нет выбранных источников</Text>
-                                )}
                             </div>
                             <div>
                                 <Text variant="body-2" style={{ fontWeight: 500, marginBottom: '12px' }}>
