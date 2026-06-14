@@ -8,12 +8,18 @@
     "dist-react/**/*",
     "dist-electron/**/*",
     "package.json",
-    "libs/**/*"
+    "libs/**/*",
+    "emulator/**/*"
   ],
   "extraResources": [
     {
       "from": "libs",
       "to": "libs",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "emulator",
+      "to": "emulator",
       "filter": ["**/*"]
     },
     "dist-electron/preload.cjs"

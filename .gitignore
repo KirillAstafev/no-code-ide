@@ -14,6 +14,7 @@ dist-react
 dist-ssr
 dist-electron-build
 libs
+emulator
 *.local
 
 # Editor directories and files
