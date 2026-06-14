@@ -482,13 +482,24 @@ export const runTest = async (
 
         if (project.sources && project.sources.length > 0) {
             project.sources.forEach(source => {
+                const sourceName = source.name.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const key = `${source.name}`;
                 if (testAddresses[key]) {
                     const [host, port] = testAddresses[key].split(':');
-                    lines.push(`app.sources.${source.name.charAt(0).toLowerCase() + source.name.substring(1, source.name.length)}.ipAddress=${host}`);
-
-                    lines.push(`app.sources.${source.name.charAt(0).toLowerCase() + source.name.substring(1, source.name.length)}.tcpPort=${parseInt(port)}`);
+                    lines.push(`app.sources.${sourceName}.ipAddress=${host || 'localhost'}`);
+                    lines.push(`app.sources.${sourceName}.tcpPort=${parseInt(port) || source.tcpPort}`);
                 }
+
+                if (source.command?.name) {
+                    lines.push(`app.sources.${sourceName}.commandName=${source.command.name}`);
+                }
+
+                if (source.commandParams && Object.keys(source.commandParams).length > 0) {
+                    Object.entries(source.commandParams).forEach(([key, value]) => {
+                        lines.push(`app.sources.${sourceName}.${key.toLowerCase()}=${value}`);
+                    });
+                }
+                lines.push('');
             });
         }
 

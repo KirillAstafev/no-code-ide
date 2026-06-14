@@ -15,9 +15,11 @@ export function generateApplicationProperties(
             lines.push(`app.sources.${sourceName}.tcpPort=${source.tcpPort}`);
             lines.push(`app.sources.${sourceName}.commandName=${source.commandName}`);
 
-            const commandParams = project.sources.filter(s => s.name === source.name)[0].commandParams || {};
-            lines.push(`app.sources.${sourceName}.accessPassword=${commandParams.accessPassword || ''}`);
-            lines.push(`app.sources.${sourceName}.userPassword=${commandParams.userPassword || ''}`);
+            if (source.commandParams && Object.keys(source.commandParams).length > 0) {
+                Object.entries(source.commandParams).forEach(([key, value]) => {
+                    lines.push(`app.sources.${sourceName}.${key.toLowerCase()}=${value}`);
+                });
+            }
             lines.push('');
         });
     }

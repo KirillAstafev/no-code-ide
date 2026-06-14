@@ -143,6 +143,7 @@ interface DataSourceInfo {
     ipAddress: string;
     tcpPort: number;
     commandName: string;
+    commandParams?: Record<string, string | number | boolean>;
 }
 
 interface DestinationConnectionInfo {
@@ -164,4 +165,5 @@ interface SourceConnectionInfo {
     sourceIpAddress: string;
     sourceTcpPort: number;
     commandName: string;
+    commandParams?: Record<string, string | number | boolean>;
 }

@@ -47,6 +47,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
             ipAddress: source.ipAddress,
             tcpPort: source.tcpPort,
             commandName: source.command?.name || 'DEFAULT_COMMAND',
+            commandParams: source.commandParams || {},
         });
     });
 
@@ -64,6 +65,7 @@ export function generateJavaProject(project: Project, mainPackage: string): Gene
                 sourceIpAddress: source.ipAddress,
                 sourceTcpPort: source.tcpPort,
                 commandName: source.command?.name || 'DEFAULT_COMMAND',
+                commandParams: source.commandParams || {},
             });
         });
 
