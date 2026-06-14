@@ -485,8 +485,9 @@ export const runTest = async (
                 const key = `${source.name}`;
                 if (testAddresses[key]) {
                     const [host, port] = testAddresses[key].split(':');
-                    lines.push(`app.sources.${source.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.ipAddress=${host || 'localhost'}`);
-                    lines.push(`app.sources.${source.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.tcpPort=${parseInt(port) || source.tcpPort}`);
+                    lines.push(`app.sources.${source.name.charAt(0).toLowerCase() + source.name.substring(1, source.name.length)}.ipAddress=${host}`);
+
+                    lines.push(`app.sources.${source.name.charAt(0).toLowerCase() + source.name.substring(1, source.name.length)}.tcpPort=${parseInt(port)}`);
                 }
             });
         }
