@@ -65,6 +65,9 @@ import javax.sql.DataSource;\n`;
     @Value("${"$"}{app.postgresql.${destName}.database}")
     private String ${destName}Database;
     
+    @Value("${"$"}{app.postgresql.${destName}.schema:public}")
+    private String ${destName}Schema;
+    
     @Value("${"$"}{app.postgresql.${destName}.username}")
     private String ${destName}Username;
     
@@ -75,7 +78,7 @@ import javax.sql.DataSource;\n`;
     @Bean(name = "${destName}DataSource")
     public DataSource ${destName}DataSource() {
         return DataSourceBuilder.create()
-            .url(String.format("jdbc:postgresql://%s:%s/%s", ${destName}Host, ${destName}Port, ${destName}Database))
+            .url(String.format("jdbc:postgresql://%s:%s/%s?currentSchema=%s", ${destName}Host, ${destName}Port, ${destName}Database, ${destName}Schema))
             .username(${destName}Username)
             .password(${destName}Password)
             .driverClassName("org.postgresql.Driver")

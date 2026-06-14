@@ -26,9 +26,6 @@ import org.springframework.beans.factory.annotation.Value;\n`;
 
         fields = `    private final JdbcTemplate jdbcTemplate;
     
-    @Value("${"$"}{app.postgresql.${propertyName}.schema:public}")
-    private String schema;
-    
     @Value("${"$"}{app.postgresql.${propertyName}.table:${tableName}}")
     private String tableName;
     
@@ -39,9 +36,9 @@ import org.springframework.beans.factory.annotation.Value;\n`;
         constructorAssignments = `        this.jdbcTemplate = jdbcTemplate;`;
 
         sendDataImpl = `
-        String insertSql = String.format("INSERT INTO %s.%s (%s) VALUES (?)", schema, tableName, columnName);
+        String insertSql = String.format("INSERT INTO %s (%s) VALUES (?)", tableName, columnName);
         jdbcTemplate.update(insertSql, data);
-        System.err.println("Data saved to PostgreSQL table '" + schema + "." + tableName + "': " + data);`;
+        System.err.println("Data saved to PostgreSQL table '" + tableName + "': " + data);`;
 
     } else if (targetType === 'KAFKA') {
         additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
