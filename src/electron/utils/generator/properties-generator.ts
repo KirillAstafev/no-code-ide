@@ -20,6 +20,9 @@ export function generateApplicationProperties(
                     lines.push(`app.sources.${sourceName}.${key.toLowerCase()}=${value}`);
                 });
             }
+
+            lines.push(`app.sources.${sourceName}.userPassword=`);
+            lines.push(`app.sources.${sourceName}.accessPassword=`);
             lines.push('');
         });
     }
@@ -110,6 +113,9 @@ export function generateApplicationProperties(
             }
         });
     }
+
+    lines.push('\nspring.main.show-banner=false');
+    lines.push('\nlogging.level.root=error');
 
     return lines.join('\n');
 }

@@ -58,7 +58,7 @@ export function generateModuleServiceClass(module: ModuleInfo, basePackage: stri
         sourceMethods += `
     @Scheduled(fixedRate = 10000)
     public void ${methodName}() {
-        System.out.println("${commandName} - ${methodName} calling ${normalizeIdentifier(source.sourceName)}");
+        System.err.println("${commandName} - ${methodName} calling ${normalizeIdentifier(source.sourceName)}");
         
         if (!${sourceField}.isConnected()) {
             System.err.println("KKT ${normalizeIdentifier(source.sourceName)} not connected");
@@ -126,7 +126,7 @@ export function generateModuleServiceClass(module: ModuleInfo, basePackage: stri
         }
 
         sourceMethods += `
-        System.out.println("Command result: " + result);
+        System.err.println("Command result: " + result);
         
         `;
 

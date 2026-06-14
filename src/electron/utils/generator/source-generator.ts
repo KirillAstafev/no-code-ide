@@ -61,7 +61,7 @@ import java.util.Random;`;
             fptr.open();
             connected = fptr.isOpened();
             
-            System.out.println("KKT ${source.name} initialized at " + ipAddress + ":" + tcpPort);
+            System.err.println("KKT ${source.name} initialized at " + ipAddress + ":" + tcpPort);
         } catch (Exception e) {
             System.err.println("Failed to initialize KKT ${source.name}: " + e.getMessage());
         }
@@ -75,7 +75,7 @@ import java.util.Random;`;
             fptr.close();
             fptr.destroy();
             connected = false;
-            System.out.println("KKT ${source.name} destroyed");
+            System.err.println("KKT ${source.name} destroyed");
         }
     }`;
 

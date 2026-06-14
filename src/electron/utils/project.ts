@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import unzipper from 'unzipper';
 import {spawn} from "node:child_process";
 import {findMainClassName, generateJavaFiles, generateJavaProject} from './javaGenerator.js';
+import {normalizePropertyName} from "./generator/shared.js";
 
 let testProcess: import('node:child_process').ChildProcess | null = null;
 
@@ -457,7 +458,7 @@ export const runTest = async (
         try {
             await fs.stat(generatedDir);
         } catch (err) {
-            throw new Error('Сгенерированный проект не найден. Выполните сборку проекта (Build) перед запуском теста.');
+            //df
         }
 
         const generatedItems = await fs.readdir(generatedDir);
@@ -482,7 +483,7 @@ export const runTest = async (
 
         if (project.sources && project.sources.length > 0) {
             project.sources.forEach(source => {
-                const sourceName = source.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const sourceName = normalizePropertyName(source.name);
                 const key = `${source.name}`;
                 if (testAddresses[key]) {
                     const [host, port] = testAddresses[key].split(':');
@@ -493,6 +494,9 @@ export const runTest = async (
                 if (source.command?.name) {
                     lines.push(`app.sources.${sourceName}.commandName=${source.command.name}`);
                 }
+
+                lines.push(`app.sources.${sourceName}.userPassword=`);
+                lines.push(`app.sources.${sourceName}.accessPassword=`);
 
                 if (source.commandParams && Object.keys(source.commandParams).length > 0) {
                     Object.entries(source.commandParams).forEach(([key, value]) => {
@@ -512,8 +516,10 @@ export const runTest = async (
                     if (destination.targetType === 'POSTGRESQL') {
                         const [host, portAndDb] = testAddresses[key].split(':');
                         const port = portAndDb ? portAndDb.split('/')[0] : '5432';
-                        lines.push(`app.postgresql.${destName}.host=${host || 'localhost'}`);
-                        lines.push(`app.postgresql.${destName}.port=${parseInt(port) || 5432}`);
+                        lines.push(`app.postgresql.${destName}.host=${host}`);
+                        lines.push(`app.postgresql.${destName}.port=${parseInt(port)}`);
+                        lines.push(`app.postgresql.${destName}.username=${destination.postgresql?.username}`);
+                        lines.push(`app.postgresql.${destName}.password=${destination.postgresql?.password}`);
                         lines.push(`app.postgresql.${destName}.database=${destination.postgresql?.databaseName || 'testdb'}`);
                         lines.push(`app.postgresql.${destName}.schema=${destination.postgresql?.schemaName || 'public'}`);
                         lines.push(`app.postgresql.${destName}.table=${destination.postgresql?.tableName || 'test_table'}`);
@@ -537,6 +543,9 @@ export const runTest = async (
                 }
             });
         }
+
+        lines.push('\nspring.main.show-banner=false');
+        lines.push('\nlogging.level.root=error');
 
         await fs.writeFile(applicationTestPropertiesPath, lines.join('\n'), 'utf-8');
 
@@ -565,16 +574,6 @@ export const runTest = async (
                 payload: {stage: 'running'}
             });
         }
-
-        testProcess.stdout?.on('data', (data) => {
-            console.log(data.toString());
-            if (window) {
-                window.webContents.send('run-test-progress', {
-                    type: 'output',
-                    payload: {output: data.toString()}
-                });
-            }
-        });
 
         testProcess.stderr?.on('data', (data) => {
             console.error(data.toString());

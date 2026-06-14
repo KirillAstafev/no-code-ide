@@ -41,7 +41,7 @@ import org.springframework.beans.factory.annotation.Value;\n`;
         sendDataImpl = `
         String insertSql = String.format("INSERT INTO %s.%s (%s) VALUES (?)", schema, tableName, columnName);
         jdbcTemplate.update(insertSql, data);
-        System.out.println("Data saved to PostgreSQL table '" + schema + "." + tableName + "': " + data);`;
+        System.err.println("Data saved to PostgreSQL table '" + schema + "." + tableName + "': " + data);`;
 
     } else if (targetType === 'KAFKA') {
         additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
@@ -58,7 +58,7 @@ import org.springframework.beans.factory.annotation.Value;\n`;
 
         sendDataImpl = `
         kafkaTemplate.send(topic, data);
-        System.out.println("Message sent to Kafka topic '" + topic + "': " + data);`;
+        System.err.println("Message sent to Kafka topic '" + topic + "': " + data);`;
 
     } else if (targetType === 'RABBITMQ') {
         additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
@@ -85,7 +85,7 @@ import org.springframework.beans.factory.annotation.Value;\n`;
         } else {
             rabbitTemplate.convertAndSend(queueName, data);
         }
-        System.out.println("Message sent to RabbitMQ: " + data);`;
+        System.err.println("Message sent to RabbitMQ: " + data);`;
 
     } else if (targetType === 'REDIS') {
         additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
@@ -108,7 +108,7 @@ import org.springframework.beans.factory.annotation.Value;\n`;
         if (ttl > 0) {
             redisTemplate.expire(key, java.time.Duration.ofSeconds(ttl));
         }
-        System.out.println("Data stored in Redis with key '" + key + "': " + data);`;
+        System.err.println("Data stored in Redis with key '" + key + "': " + data);`;
 
     } else if (targetType === 'CASSANDRA') {
         additionalImports = `import org.springframework.beans.factory.annotation.Qualifier;
@@ -128,7 +128,7 @@ import org.springframework.beans.factory.annotation.Value;\n`;
         // ExampleEntity entity = new ExampleEntity();
         // entity.setData(data);
         // cassandraTemplate.insert(entity);
-        System.out.println("Data inserted into Cassandra table '" + table + "': " + data);`;
+        System.err.println("Data inserted into Cassandra table '" + table + "': " + data);`;
 
     } else {
         throw new Error(`Unsupported destination type: ${targetType}. Supported types: POSTGRESQL, KAFKA, RABBITMQ, REDIS, CASSANDRA`);

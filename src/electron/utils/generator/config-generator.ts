@@ -56,19 +56,19 @@ import javax.sql.DataSource;\n`;
         const destName = normalizePropertyName(dest.destinationName);
 
         propertiesFields += `
-    @Value("${"$"}{app.postgresql.${destName}.host:localhost}")
+    @Value("${"$"}{app.postgresql.${destName}.host}")
     private String ${destName}Host;
     
-    @Value("${"$"}{app.postgresql.${destName}.port:5432}")
+    @Value("${"$"}{app.postgresql.${destName}.port}")
     private int ${destName}Port;
     
-    @Value("${"$"}{app.postgresql.${destName}.database:postgres}")
+    @Value("${"$"}{app.postgresql.${destName}.database}")
     private String ${destName}Database;
     
-    @Value("${"$"}{app.postgresql.${destName}.username:postgres}")
+    @Value("${"$"}{app.postgresql.${destName}.username}")
     private String ${destName}Username;
     
-    @Value("${"$"}{app.postgresql.${destName}.password:}")
+    @Value("${"$"}{app.postgresql.${destName}.password}")
     private String ${destName}Password;`;
 
         beans += `
@@ -125,7 +125,7 @@ import java.util.Map;\n`;
         const destName = normalizePropertyName(dest.destinationName);
 
         propertiesFields += `
-    @Value("${"$"}{app.kafka.${destName}.bootstrap-servers:localhost:9092}")
+    @Value("${"$"}{app.kafka.${destName}.bootstrap-servers}")
     private String ${destName}BootstrapServers;`;
 
         beans += `
